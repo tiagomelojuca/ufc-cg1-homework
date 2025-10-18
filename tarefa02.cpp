@@ -1,6 +1,8 @@
 // ------------------------------------------------------------------------------------------------
 // COMPUTACAO GRAFICA I - TAREFA 02
 // ------------------------------------------------------------------------------------------------
+// Esfera iluminada por uma fonte de luz pontual
+// ------------------------------------------------------------------------------------------------
 // Modificar o metodo da Tarefa 01 para que, caso haja intersecao de um raio com a esfera,
 // a cor retornada seja dada pela energia luminosa que vem do ponto de intersecao PI em direcao
 // ao olho do observador. Essa energia luminosa e o resultado da interacao entre a energia

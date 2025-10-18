@@ -1,6 +1,8 @@
 // ------------------------------------------------------------------------------------------------
 // COMPUTACAO GRAFICA I - TAREFA 03
 // ------------------------------------------------------------------------------------------------
+// Esfera e planos com sombra
+// ------------------------------------------------------------------------------------------------
 // Refaca a Tarefa 02 com a inclusao de dois planos. Siga a seguinte especificacao:
 // 1) Janela de 60cm x 60 cm (H_J = 60, W_J = 60) 
 // 2) Window = Canvas de  500 x 500 pixels (H_C = nLin = 500, W_C = nCol = 500)

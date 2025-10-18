@@ -1,6 +1,8 @@
 // ------------------------------------------------------------------------------------------------
 // COMPUTACAO GRAFICA I - TAREFA 01
 // ------------------------------------------------------------------------------------------------
+// Esfera com o centro no eixo z negativo
+// ------------------------------------------------------------------------------------------------
 // Escreva um código, baseado na discussão das duas primeiras aulas,
 // que pinte uma esfera no canvas. Os requisitos são os seguintes:
 //   1) Defina uma janela através da qual o pintor verá a esfera 
