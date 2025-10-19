@@ -255,6 +255,15 @@ class TMaterial
 public:
     TMaterial() = default;
 
+    double M() const
+    {
+        return _m;
+    }
+    void M(double m)
+    {
+        _m = m;
+    }
+
     double KdR() const
     {
         return _kdR;
@@ -305,7 +314,34 @@ public:
         _keB = b;
     }
 
+    double KaR() const
+    {
+        return _kaR;
+    }
+    void KaR(double r)
+    {
+        _kaR = r;
+    }
+    double KaG() const
+    {
+        return _kaG;
+    }
+    void KaG(double g)
+    {
+        _kaG = g;
+    }
+    double KaB() const
+    {
+        return _kaB;
+    }
+    void KaB(double b)
+    {
+        _kaB = b;
+    }
+
 private:
+    double _m = 0.0;
+
     double _kdR = 0.0;
     double _kdG = 0.0;
     double _kdB = 0.0;
@@ -313,6 +349,40 @@ private:
     double _keR = 0.0;
     double _keG = 0.0;
     double _keB = 0.0;
+
+    double _kaR = 0.0;
+    double _kaG = 0.0;
+    double _kaB = 0.0;
+};
+
+// ------------------------------------------------------------------------------------------------
+
+class IFonteLuminosa
+{
+public:
+    IFonteLuminosa() = default;
+    virtual ~IFonteLuminosa() = default;
+
+    virtual IFonteLuminosa* Copia() const = 0;
+};
+
+// ------------------------------------------------------------------------------------------------
+
+class TFontePontual : public IFonteLuminosa
+{
+public:
+    TFontePontual() = default;
+    TFontePontual(const TPonto3D& posicao, const TVetor3D& intensidade)
+        : _p(posicao), _i(intensidade) {}
+
+    IFonteLuminosa* Copia() const override
+    {
+        return new TFontePontual(*this);
+    }
+
+private:
+    TPonto3D _p;
+    TVetor3D _i;
 };
 
 // ------------------------------------------------------------------------------------------------
@@ -324,6 +394,29 @@ public:
     virtual ~IEntidade3D() = default;
 
     virtual IEntidade3D* Copia() const = 0;
+};
+
+// ------------------------------------------------------------------------------------------------
+
+class TPlano : public IEntidade3D
+{
+public:
+    TPlano() = delete;
+    TPlano(const TPonto3D& p, const TVetor3D& normal) : _p(p), _direcao(normal) {}
+
+    IEntidade3D* Copia() const override
+    {
+        return new TPlano(*this);
+    }
+
+    const TMaterial& Material() const { return _material; }
+    void Material(const TMaterial& material) { _material = material; }
+
+private:
+    TPonto3D _p;
+    TVetor3D _direcao;
+
+    TMaterial _material;
 };
 
 // ------------------------------------------------------------------------------------------------
@@ -763,9 +856,38 @@ public:
     const TCor& BgColor() const { return _bgColor; }
     void BgColor(const TCor& cor) { _bgColor = cor; }
 
+    double IambR() const
+    {
+        return _iAmbR;
+    }
+    void IambR(double iAmbR)
+    {
+        _iAmbR = iAmbR;
+    }
+    double IambG() const
+    {
+        return _iAmbG;
+    }
+    void IambG(double iAmbG)
+    {
+        _iAmbG = iAmbG;
+    }
+    double IambB() const
+    {
+        return _iAmbB;
+    }
+    void IambB(double iAmbB)
+    {
+        _iAmbB = iAmbB;
+    }
+
     void Insere(const IEntidade3D& entidade)
     {
         _entidades.push_back(std::unique_ptr<IEntidade3D>(entidade.Copia()));
+    }
+    void Insere(const IFonteLuminosa& fonte)
+    {
+        _fontes.push_back(std::unique_ptr<IFonteLuminosa>(fonte.Copia()));
     }
 
     void Renderizar(IArquivoSaida& arq)
@@ -806,14 +928,6 @@ public:
 private:
     TCor Cor(const TPonto3D& p) const
     {
-        // essa funcao sera substituida no futuro
-        // por enquanto, to deixando renderizar pela ordem de insercao dos
-        // objetos na lista, e nao pela posicao relativa ao observador,
-        // como deveria ser... isso esta errado, eh claro, mas deixei assim
-        // enquanto nao pergunto pro prof a melhor maneira de fazer a interacao
-        // entre multiplos objetos na cena
-        // (talvez usar a cor do obj com menor dist da intersecao?)
-
         TCor pixel = _bgColor;
 
         for (const std::unique_ptr<IEntidade3D>& entidade : _entidades)
@@ -873,49 +987,137 @@ private:
     TPonto3D _p0; // olho do pintor (origem)
 
     TCor _bgColor;
+    double _iAmbR = 0.0;
+    double _iAmbG = 0.0;
+    double _iAmbB = 0.0;
+
     std::vector<std::unique_ptr<IEntidade3D>> _entidades;
+    std::vector<std::unique_ptr<IFonteLuminosa>> _fontes;
 };
+
+// ------------------------------------------------------------------------------------------------
+
+TEsfera FabricaEsfera()
+{
+    TMaterial material;
+    material.KdR(0.7);
+    material.KdG(0.2);
+    material.KdB(0.2);
+    material.KeR(0.7);
+    material.KeG(0.2);
+    material.KeB(0.2);
+    material.KaR(0.7);
+    material.KaG(0.2);
+    material.KaB(0.2);
+    material.M(10.0);
+
+    TEsfera esfera { { 0.0, 0.0, -100.0 }, 40.0 };
+    esfera.Material(material);
+
+    return esfera;
+}
+
+// ------------------------------------------------------------------------------------------------
+
+TPlano FabricaPlanoChao(const TEsfera& esfera)
+{
+    TMaterial material;
+    material.KdR(0.2);
+    material.KdG(0.7);
+    material.KdB(0.2);
+    material.KeR(0.0);
+    material.KeG(0.0);
+    material.KeB(0.0);
+    material.KaR(0.2);
+    material.KaG(0.7);
+    material.KaB(0.2);
+    material.M(1.0);
+
+    TPlano planoChao { { 0.0, -esfera.Raio(), 0.0 }, { 0.0, 1.0, 0.0 } };
+    planoChao.Material(material);
+
+    return planoChao;
+}
+
+// ------------------------------------------------------------------------------------------------
+
+TPlano FabricaPlanoFundo()
+{
+    TMaterial material;
+    material.KdR(0.3);
+    material.KdG(0.3);
+    material.KdB(0.7);
+    material.KeR(0.0);
+    material.KeG(0.0);
+    material.KeB(0.0);
+    material.KaR(0.3);
+    material.KaG(0.3);
+    material.KaB(0.7);
+    material.M(1.0);
+
+    TPlano planoFundo { { 0.0, 0.0, -200.0 }, { 0.0, 0.0, 1.0 } };
+    planoFundo.Material(material);
+
+    return planoFundo;
+}
+
+// ------------------------------------------------------------------------------------------------
+
+TCena3D FabricaCena()
+{
+    const TPonto3D p0 { 0.0, 0.0, 0.0 };
+
+    const double wJanela = 60.0;
+    const double hJanela = 60.0;
+    const double dJanela = 30.0;
+    const uint16_t wCanvas = 500u;
+    const uint16_t hCanvas = 500u;
+    const TJanela janela { { 0.0, 0.0, -dJanela }, wJanela, hJanela, wCanvas, hCanvas };
+
+    TCena3D cena { p0, janela };
+    cena.BgColor({ 100u, 100u, 100u });
+    cena.IambR(0.3);
+    cena.IambG(0.3);
+    cena.IambB(0.3);
+
+    const TFontePontual fontePontual { { 0.0, 60.0, -30.0 }, { 0.7, 0.7, 0.7 } };
+    const TEsfera esfera = FabricaEsfera();
+    const TPlano planoChao = FabricaPlanoChao(esfera);
+    const TPlano planoFundo = FabricaPlanoFundo();
+
+    cena.Insere(fontePontual);
+    cena.Insere(esfera);
+    cena.Insere(planoChao);
+    cena.Insere(planoFundo);
+
+    return cena;
+}
+
+// ------------------------------------------------------------------------------------------------
+
+std::unique_ptr<IArquivoSaida> FabricaArquivo(
+    const std::string& nome,
+    EFormatoImagem formato,
+    const TCena3D& cena
+)
+{
+    const TJanela janela = cena.Janela();
+
+    return FuncoesGerais::FabricaArquivo(
+        formato, nome, janela.LarguraCanvas(), janela.AlturaCanvas()
+    );
+}
 
 // ------------------------------------------------------------------------------------------------
 
 int main()
 {
-    const TPonto3D p0 { 0.0, 0.0, 0.0 };
-
-    const double wJanela = 10.0;
-    const double hJanela = 10.0;
-    const double dJanela = 12.0;
-    const uint16_t wCanvas = 500u;
-    const uint16_t hCanvas = 500u;
-    const TJanela janela { { 0.0, 0.0, -dJanela }, wJanela, hJanela, wCanvas, hCanvas };
-
-    std::unique_ptr<IArquivoSaida> arq = FuncoesGerais::FabricaArquivo(
-        EFormatoImagem::BMP, "teste", janela.LarguraCanvas(), janela.AlturaCanvas()
-    );
+    TCena3D cena = FabricaCena();
+    const std::unique_ptr<IArquivoSaida> arq = FabricaArquivo("a", EFormatoImagem::BMP, cena);
 
     const bool erro = !arq->Aberto();
     if (!erro)
     {
-        TMaterial material;
-        material.KdR(1.0);
-        material.KdG(0.0);
-        material.KdB(0.0);
-        material.KeR(1.0);
-        material.KeG(1.0);
-        material.KeB(1.0);
-
-        TEsfera esfera { { 0.0, 0.0, -20.0 }, 4.0 };
-        esfera.Material(material);
-
-        // TEsfera esfera2 { { -10.0, -10.0, -55.0 }, 4.0 };
-        // esfera2.Cor({ 0u, 255u, 0u });
-
-        TCena3D cena { p0, janela };
-        cena.BgColor({ 100u, 100u, 100u });
-        cena.Insere(esfera);
-
-        // cena.Insere(esfera2);
-
         cena.Renderizar(*arq);
     }
 
