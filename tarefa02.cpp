@@ -402,6 +402,18 @@ public:
         return aberto;
     }
 
+    bool Anexa(const std::string& logMsg)
+    {
+        const bool aberto = Aberto();
+
+        if (aberto)
+        {
+            _stream << "    " << logMsg << "\n";
+        }
+        
+        return aberto;
+    }
+
     void Flush() override
     {
         _stream.flush();
@@ -654,8 +666,13 @@ public:
         _entidades.push_back(std::unique_ptr<IEntidade3D>(entidade.Copia()));
     }
 
-    void Renderizar(IArquivoSaida& arq) const
+    void Renderizar(IArquivoSaida& arq)
     {
+        if (auto arqLog = dynamic_cast<TArquivoLOG*>(&arq))
+        {
+            _arqLog = arqLog;
+        }
+
         const uint16_t nLinhas = _janela.AlturaCanvas();
         const uint16_t nColunas = _janela.LarguraCanvas();
 
@@ -672,7 +689,16 @@ public:
             }
         }
 
+        _arqLog = nullptr;
         arq.Flush();
+    }
+
+    void Log(const std::string& msg) const
+    {
+        if (_arqLog != nullptr)
+        {
+            _arqLog->Anexa(msg);
+        }
     }
 
 private:
@@ -737,6 +763,8 @@ private:
 
         return FuncoesGerais::Vec2Cor(c);
     }
+
+    TArquivoLOG* _arqLog = nullptr;
 
     TJanela _janela;
     TPonto3D _p0; // olho do pintor (origem)
