@@ -640,8 +640,8 @@ private:
         const TPonto3D ke { 1.0, 1.0, 1.0 };
 
         const double m = 100.0;
-        const double fd = n.Dot(l);
-        const double fe = pow(v.Dot(r), m);
+        const double fd = std::max(0.0, n.Dot(l));
+        const double fe = pow(std::max(v.Dot(r), 0.0), m);
 
         const auto id = TVetor3D(iFonte).Arroba(kd) * fd;
         const auto ie = TVetor3D(iFonte).Arroba(ke) * fe;
