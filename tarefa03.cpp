@@ -380,6 +380,15 @@ public:
         return new TFontePontual(*this);
     }
 
+    const TPonto3D& Posicao() const
+    {
+        return _p;
+    }
+    const TVetor3D& Intensidade() const
+    {
+        return _i;
+    }
+
 private:
     TPonto3D _p;
     TVetor3D _i;
@@ -394,6 +403,9 @@ public:
     virtual ~IEntidade3D() = default;
 
     virtual IEntidade3D* Copia() const = 0;
+    virtual std::string Rotulo() const = 0;
+
+    virtual std::vector<double> Intersecoes(const TRaio3D& raio) const = 0;
 };
 
 // ------------------------------------------------------------------------------------------------
@@ -402,19 +414,52 @@ class TPlano : public IEntidade3D
 {
 public:
     TPlano() = delete;
-    TPlano(const TPonto3D& p, const TVetor3D& normal) : _p(p), _direcao(normal) {}
+    TPlano(const TPonto3D& posicao, const TVetor3D& direcao) : _p(posicao), _n(direcao) {}
 
     IEntidade3D* Copia() const override
     {
         return new TPlano(*this);
     }
 
+    std::string Rotulo() const override
+    {
+        return _rotulo;
+    }
+    void Rotulo(const std::string& rotulo)
+    {
+        _rotulo = rotulo;
+    }
+
+    const TPonto3D& PontoReferencia() const
+    {
+        return _p;
+    }
+    const TVetor3D& Normal() const
+    {
+        return _n;
+    }
+
     const TMaterial& Material() const { return _material; }
     void Material(const TMaterial& material) { _material = material; }
 
+    std::vector<double> Intersecoes(const TRaio3D& raio) const override
+    {
+        std::vector<double> intersecoes;
+
+        const double dn = raio.Direcao().Dot(_n);
+        if (dn != 0.0)
+        {
+            intersecoes.push_back(-(_n.Dot(raio.Origem() - _p) / dn));
+        }
+
+        return intersecoes;
+    }
+
 private:
+    std::string _rotulo;
+
     TPonto3D _p;
-    TVetor3D _direcao;
+    TVetor3D _n;
 
     TMaterial _material;
 };
@@ -432,13 +477,47 @@ public:
         return new TEsfera(*this);
     }
 
+    std::string Rotulo() const override
+    {
+        return _rotulo;
+    }
+    void Rotulo(const std::string& rotulo)
+    {
+        _rotulo = rotulo;
+    }
+
     const TPonto3D& Centro() const { return _centro; }
     double Raio() const { return _raio; }
 
     const TMaterial& Material() const { return _material; }
     void Material(const TMaterial& material) { _material = material; }
 
+    std::vector<double> Intersecoes(const TRaio3D& raio) const override
+    {
+        std::vector<double> intersecoes;
+
+        const TVetor3D w = raio.Origem() - Centro();
+        const TVetor3D d = raio.Direcao();
+
+        const double a = d.Dot(d);
+        const double b = 2.0 * (w.Dot(d));
+        const double c = w.Dot(w) - Raio() * Raio();
+        const double delta = b * b - 4.0 * a * c;
+
+        if (delta < 0.0)
+        {
+            return intersecoes;
+        }
+
+        intersecoes.push_back((-b - sqrt(delta)) / 2.0 * a);
+        intersecoes.push_back((-b + sqrt(delta)) / 2.0 * a);
+
+        return intersecoes;
+    }
+
 private:
+    std::string _rotulo;
+
     TPonto3D _centro;
     double _raio = 0.0;
 
@@ -814,29 +893,6 @@ namespace FuncoesGeometricas
 
         return d;
     }
-
-    std::vector<double> Intersecoes(const TRaio3D& raio, const TEsfera& esfera)
-    {
-        std::vector<double> intersecoes;
-
-        const TVetor3D w = raio.Origem() - esfera.Centro();
-        const TVetor3D d = raio.Direcao();
-
-        const double a = d.Dot(d);
-        const double b = 2.0 * (w.Dot(d));
-        const double c = w.Dot(w) - esfera.Raio() * esfera.Raio();
-        const double delta = b * b - 4.0 * a * c;
-
-        if (delta < 0.0)
-        {
-            return intersecoes;
-        }
-
-        intersecoes.push_back((-b - sqrt(delta)) / 2.0 * a);
-        intersecoes.push_back((-b + sqrt(delta)) / 2.0 * a);
-
-        return intersecoes;
-    }
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -928,57 +984,147 @@ public:
 private:
     TCor Cor(const TPonto3D& p) const
     {
-        TCor pixel = _bgColor;
+        const TVetor3D d = FuncoesGeometricas::Versor(_p0, p);
+        const TRaio3D raio { _p0, d };
+
+        double intersecaoMaisProximaObservador = std::numeric_limits<double>::max();
+        IEntidade3D* entidadeMaisProximaObservador = nullptr;
 
         for (const std::unique_ptr<IEntidade3D>& entidade : _entidades)
         {
-            if (auto esfera = dynamic_cast<const TEsfera*>(entidade.get()))
+            const std::vector<double> intersecoesValidas = IntersecoesValidas(*entidade, raio);
+            if (!intersecoesValidas.empty())
             {
-                if (pixel == _bgColor)
+                const double intersecaoEntidadeMaisProximaObservador = intersecoesValidas[0];
+                if (intersecaoEntidadeMaisProximaObservador < intersecaoMaisProximaObservador)
                 {
-                    pixel = Cor(p, *esfera);
+                    intersecaoMaisProximaObservador = intersecaoEntidadeMaisProximaObservador;
+                    entidadeMaisProximaObservador = entidade.get();
                 }
+            }
+        }
+
+        TCor pixel = _bgColor;
+
+        if (entidadeMaisProximaObservador != nullptr)
+        {
+            if (auto esfera = dynamic_cast<const TEsfera*>(entidadeMaisProximaObservador))
+            {
+                pixel = Cor(*esfera, raio, intersecaoMaisProximaObservador);
+            }
+            else if (auto plano = dynamic_cast<const TPlano*>(entidadeMaisProximaObservador))
+            {
+                pixel = Cor(*plano, raio, intersecaoMaisProximaObservador);
             }
         }
 
         return pixel;
     }
 
-    TCor Cor(const TPonto3D& p, const TEsfera& esfera) const
+    TCor Cor(const TEsfera& esfera, const TRaio3D& raio, double ti) const
     {
-        const TVetor3D d = FuncoesGeometricas::Versor(_p0, p);
-        const TRaio3D raio { _p0, d };
         const TMaterial& material = esfera.Material();
-        const std::vector<double> intersecoes = FuncoesGeometricas::Intersecoes(raio, esfera);
-
-        if (intersecoes.empty())
-        {
-            return _bgColor;
-        }
-
-        const TPonto3D pFonte = { 0.0, 5.0, 0.0 };
-        const TPonto3D p1 = raio.Ponto(intersecoes[0]);
-
-        const TVetor3D n = TVetor3D { p1 - esfera.Centro() } / esfera.Raio();
-        const TVetor3D l = TVetor3D { pFonte - p1 }.Normalizado();
-        const TVetor3D v = d * -1.0;
-        const TVetor3D r = (n * 2.0 * n.Dot(l)) - l;
-
-        const TPonto3D iFonte { 0.7, 0.7, 0.7 };
         const TPonto3D kd { material.KdR(), material.KdG(), material.KdB() };
         const TPonto3D ke { material.KeR(), material.KeG(), material.KeB() };
 
-        const double m = 10.0;
-        const double fd = std::max(0.0, n.Dot(l));
-        const double fe = pow(std::max(v.Dot(r), 0.0), m);
+        const TPonto3D p1 = raio.Ponto(ti);
+        const TVetor3D n = TVetor3D { p1 - esfera.Centro() } / esfera.Raio();
+        const TVetor3D v = raio.Direcao() * -1.0;
 
-        const auto id = TVetor3D(iFonte).Arroba(kd) * fd;
-        const auto ie = TVetor3D(iFonte).Arroba(ke) * fe;
-        const TVetor3D i = id + ie;
+        TVetor3D i;
+        for (const std::unique_ptr<IFonteLuminosa>& fonte : _fontes)
+        {
+            if (auto fontePontual = dynamic_cast<const TFontePontual*>(fonte.get()))
+            {
+                const TPonto3D pFonte = fontePontual->Posicao();
+                const TPonto3D iFonte = fontePontual->Intensidade();
+                
+                const TVetor3D l = TVetor3D { pFonte - p1 }.Normalizado();
+                const TVetor3D r = (n * 2.0 * n.Dot(l)) - l;
+                const double fd = std::max(0.0, n.Dot(l));
+                const double fe = pow(std::max(v.Dot(r), 0.0), material.M());
+
+                const auto id = TVetor3D(iFonte).Arroba(kd) * fd;
+                const auto ie = TVetor3D(iFonte).Arroba(ke) * fe;
+
+                const TVetor3D iCorrente = id + ie;
+                i += iCorrente;
+            }
+        }
+
         TVetor3D c = i.Arroba(TVetor3D(255.0, 255.0, 255.0));
         c.Clamp(0.0, 255.0);
 
         return FuncoesGerais::Vec2Cor(c);
+    }
+
+    TCor Cor(const TPlano& plano, const TRaio3D& raio, double ti) const
+    {
+        const TMaterial& material = plano.Material();
+        const TPonto3D kd { material.KdR(), material.KdG(), material.KdB() };
+        const TPonto3D ke { material.KeR(), material.KeG(), material.KeB() };
+
+        const TPonto3D p1 = raio.Ponto(ti);
+        const TVetor3D n = plano.Normal();
+        const TVetor3D v = raio.Direcao() * -1.0;
+
+        TVetor3D i;
+        for (const std::unique_ptr<IFonteLuminosa>& fonte : _fontes)
+        {
+            if (auto fontePontual = dynamic_cast<const TFontePontual*>(fonte.get()))
+            {
+                const TPonto3D pFonte = fontePontual->Posicao();
+                const TPonto3D iFonte = fontePontual->Intensidade();
+                
+                const TVetor3D l = TVetor3D { pFonte - p1 }.Normalizado();
+                const TVetor3D r = (n * 2.0 * n.Dot(l)) - l;
+                const double fd = std::max(0.0, n.Dot(l));
+                const double fe = pow(std::max(v.Dot(r), 0.0), material.M());
+
+                const auto id = TVetor3D(iFonte).Arroba(kd) * fd;
+                const auto ie = TVetor3D(iFonte).Arroba(ke) * fe;
+
+                const TVetor3D iCorrente = id + ie;
+                i += iCorrente;
+            }
+        }
+
+        TVetor3D c = i.Arroba(TVetor3D(255.0, 255.0, 255.0));
+        c.Clamp(0.0, 255.0);
+
+        return FuncoesGerais::Vec2Cor(c);
+    }
+
+    std::vector<double> IntersecoesValidas(
+        const IEntidade3D& entidade,
+        const TRaio3D& raio
+    ) const
+    {
+        std::vector<double> intersecoesValidas;
+
+        auto TemIntersecao = [&intersecoesValidas](double intersecao)
+        {
+            for (double intersecaoValida : intersecoesValidas)
+            {
+                if (intersecao == intersecaoValida)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        };
+
+        std::vector<double> intersecoes = entidade.Intersecoes(raio);
+        for (double intersecao : intersecoes)
+        {
+            if (intersecao >= 0.0 && !TemIntersecao(intersecao))
+            {
+                intersecoesValidas.push_back(intersecao);
+            }
+        }
+
+        return intersecoesValidas;
     }
 
     TArquivoLOG* _arqLog = nullptr;
@@ -1012,6 +1158,7 @@ TEsfera FabricaEsfera()
     material.M(10.0);
 
     TEsfera esfera { { 0.0, 0.0, -100.0 }, 40.0 };
+    esfera.Rotulo("ESFERA_1");
     esfera.Material(material);
 
     return esfera;
@@ -1034,6 +1181,7 @@ TPlano FabricaPlanoChao(const TEsfera& esfera)
     material.M(1.0);
 
     TPlano planoChao { { 0.0, -esfera.Raio(), 0.0 }, { 0.0, 1.0, 0.0 } };
+    planoChao.Rotulo("PLANO_CHAO");
     planoChao.Material(material);
 
     return planoChao;
@@ -1056,6 +1204,7 @@ TPlano FabricaPlanoFundo()
     material.M(1.0);
 
     TPlano planoFundo { { 0.0, 0.0, -200.0 }, { 0.0, 0.0, 1.0 } };
+    planoFundo.Rotulo("PLANO_FUNDO");
     planoFundo.Material(material);
 
     return planoFundo;
