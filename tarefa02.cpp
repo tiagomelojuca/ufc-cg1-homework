@@ -24,6 +24,8 @@
 #include <vector>
 #include <memory>
 
+#include "BitmapPlusPlus.hpp"
+
 // ------------------------------------------------------------------------------------------------
 
 class TVetor4D
@@ -299,7 +301,42 @@ private:
 
 // ------------------------------------------------------------------------------------------------
 
-class TArquivoPPM
+enum class EFormatoImagem { PPM, BMP };
+
+// ------------------------------------------------------------------------------------------------
+
+std::string Extensao(EFormatoImagem formato)
+{
+    if (formato == EFormatoImagem::PPM)
+    {
+        return "ppm";
+    }
+
+    if (formato == EFormatoImagem::BMP)
+    {
+        return "bmp";
+    }
+
+    return "";
+}
+
+// ------------------------------------------------------------------------------------------------
+
+class IArquivoSaida
+{
+public:
+    IArquivoSaida() = default;
+    virtual ~IArquivoSaida() = default;
+
+    virtual bool Aberto() const = 0;
+    virtual const char* Caminho() const = 0;
+    virtual bool Anexa(const TCor& cor) = 0;
+    virtual void Flush() = 0;
+};
+
+// ------------------------------------------------------------------------------------------------
+
+class TArquivoPPM : public IArquivoSaida
 {
 public:
     TArquivoPPM() = delete;
@@ -331,16 +368,16 @@ public:
         _stream.close();
     }
 
-    bool Aberto() const
+    bool Aberto() const override
     {
         return _stream.is_open();
     }
-    const char* Caminho() const
+    const char* Caminho() const override
     {
         return _caminho.c_str();
     }
 
-    bool Anexa(const TCor& cor)
+    bool Anexa(const TCor& cor) override
     {
         const bool aberto = Aberto();
 
@@ -354,12 +391,82 @@ public:
         return aberto;
     }
 
+    void Flush() override
+    {
+        _stream.flush();
+    }
+
 private:
     std::string _caminho;
     uint16_t _largura;
     uint16_t _altura;
 
     std::ofstream _stream;
+};
+
+// ------------------------------------------------------------------------------------------------
+
+class TArquivoBMP : public IArquivoSaida
+{
+public:
+    TArquivoBMP() = delete;
+    TArquivoBMP(
+        const std::string& caminho,
+        uint16_t largura,
+        uint16_t altura
+    )
+        : _caminho(caminho),
+          _largura(largura),
+          _altura(altura)
+    {
+        _imagem = new bmp::Bitmap(_largura, _altura);
+    }
+    ~TArquivoBMP()
+    {
+        delete _imagem;
+    }
+
+    bool Aberto() const override
+    {
+        return _imagem->width() > 0 && _imagem->height() > 0;
+    }
+    const char* Caminho() const override
+    {
+        return _caminho.c_str();
+    }
+
+    bool Anexa(const TCor& cor) override
+    {
+        const bool aberto = Aberto();
+
+        if (aberto)
+        {
+            _imagem->set(x, y, bmp::Pixel { cor.R(), cor.G(), cor.B() });
+
+            x++;
+            if (x == _imagem->width())
+            {
+                x = 0;
+                y++;
+            }
+        }
+        
+        return aberto;
+    }
+
+    void Flush() override
+    {
+        _imagem->save(_caminho);
+    }
+
+private:
+    std::string _caminho;
+    uint16_t _largura;
+    uint16_t _altura;
+
+    bmp::Bitmap* _imagem = nullptr;
+    std::int32_t x = 0;
+    std::int32_t y = 0;
 };
 
 // ------------------------------------------------------------------------------------------------
@@ -374,6 +481,31 @@ namespace FuncoesGerais
     TCor Vec2Cor(const TVetor3D& v)
     {
         return { Trunca(v.X()), Trunca(v.Y()), Trunca(v.Z()) };
+    }
+
+    std::unique_ptr<IArquivoSaida> FabricaArquivo(
+        EFormatoImagem formato,
+        const std::string& nomeArquivo,
+        uint16_t largura,
+        uint16_t altura
+    )
+    {
+        IArquivoSaida* arq = nullptr;
+
+        std::string _nomeArquivo = nomeArquivo;
+        _nomeArquivo += ".";
+        _nomeArquivo += Extensao(formato);
+
+        if (formato == EFormatoImagem::PPM)
+        {
+            arq = new TArquivoPPM(_nomeArquivo, largura, altura);
+        }
+        else if (formato == EFormatoImagem::BMP)
+        {
+            arq = new TArquivoBMP(_nomeArquivo, largura, altura);
+        }
+
+        return std::unique_ptr<IArquivoSaida>(arq);
     }
 }
 
@@ -435,7 +567,7 @@ public:
         _entidades.push_back(std::unique_ptr<IEntidade3D>(entidade.Copia()));
     }
 
-    void Renderizar(TArquivoPPM& arq) const
+    void Renderizar(IArquivoSaida& arq) const
     {
         const uint16_t nLinhas = _janela.AlturaCanvas();
         const uint16_t nColunas = _janela.LarguraCanvas();
@@ -452,6 +584,8 @@ public:
                 arq.Anexa(Cor({ x, y, z }));
             }
         }
+
+        arq.Flush();
     }
 
 private:
@@ -537,9 +671,11 @@ int main()
     const uint16_t hCanvas = 500u;
     const TJanela janela { { 0.0, 0.0, -dJanela }, wJanela, hJanela, wCanvas, hCanvas };
 
-    TArquivoPPM arq("teste.ppm", janela.LarguraCanvas(), janela.AlturaCanvas());
+    std::unique_ptr<IArquivoSaida> arq = FuncoesGerais::FabricaArquivo(
+        EFormatoImagem::BMP, "teste", janela.LarguraCanvas(), janela.AlturaCanvas()
+    );
 
-    const bool erro = !arq.Aberto();
+    const bool erro = !arq->Aberto();
     if (!erro)
     {
         TEsfera esfera { { 0.0, 0.0, -20.0 }, 4.0 };
@@ -554,7 +690,7 @@ int main()
 
         // cena.Insere(esfera2);
 
-        cena.Renderizar(arq);
+        cena.Renderizar(*arq);
     }
 
     return erro;
