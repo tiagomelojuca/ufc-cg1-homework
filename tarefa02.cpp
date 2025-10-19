@@ -301,12 +301,17 @@ private:
 
 // ------------------------------------------------------------------------------------------------
 
-enum class EFormatoImagem { PPM, BMP };
+enum class EFormatoImagem { LOG, PPM, BMP };
 
 // ------------------------------------------------------------------------------------------------
 
 std::string Extensao(EFormatoImagem formato)
 {
+    if (formato == EFormatoImagem::LOG)
+    {
+        return "log";
+    }
+
     if (formato == EFormatoImagem::PPM)
     {
         return "ppm";
@@ -332,6 +337,84 @@ public:
     virtual const char* Caminho() const = 0;
     virtual bool Anexa(const TCor& cor) = 0;
     virtual void Flush() = 0;
+};
+
+// ------------------------------------------------------------------------------------------------
+
+class TArquivoLOG : public IArquivoSaida
+{
+public:
+    TArquivoLOG() = delete;
+    TArquivoLOG(
+        const std::string& caminho,
+        uint16_t largura,
+        uint16_t altura
+    )
+        : _caminho(caminho),
+          _largura(largura),
+          _altura(altura)
+    {
+        _stream.open(_caminho);
+
+        if (_stream.is_open())
+        {
+            _stream << "W = " << std::to_string(_largura)
+                    << "; "
+                    << "H = "
+                    << std::to_string(altura)
+                    << ";\n";
+        }
+    }
+    ~TArquivoLOG()
+    {
+        _stream.close();
+    }
+
+    bool Aberto() const override
+    {
+        return _stream.is_open();
+    }
+    const char* Caminho() const override
+    {
+        return _caminho.c_str();
+    }
+
+    bool Anexa(const TCor& cor) override
+    {
+        const bool aberto = Aberto();
+
+        if (aberto)
+        {
+            _stream << "X = " << std::to_string(_coordX) << "; "
+                    << "Y = " << std::to_string(_coordY) << "; "
+                    << "R = " << std::to_string(cor.R()) << "; "
+                    << "G = " << std::to_string(cor.G()) << "; "
+                    << "B = " << std::to_string(cor.B()) << ";\n";
+            
+            _coordX++;
+            if (_coordX == _largura + 1)
+            {
+                _coordX = 1;
+                _coordY++;
+            }
+        }
+        
+        return aberto;
+    }
+
+    void Flush() override
+    {
+        _stream.flush();
+    }
+
+private:
+    std::string _caminho;
+    uint16_t _largura;
+    uint16_t _altura;
+
+    std::ofstream _stream;
+    uint16_t _coordX = 1;
+    uint16_t _coordY = 1;
 };
 
 // ------------------------------------------------------------------------------------------------
@@ -496,7 +579,11 @@ namespace FuncoesGerais
         _nomeArquivo += ".";
         _nomeArquivo += Extensao(formato);
 
-        if (formato == EFormatoImagem::PPM)
+        if (formato == EFormatoImagem::LOG)
+        {
+            arq = new TArquivoLOG(_nomeArquivo, largura, altura);
+        }
+        else if (formato == EFormatoImagem::PPM)
         {
             arq = new TArquivoPPM(_nomeArquivo, largura, altura);
         }
@@ -672,7 +759,7 @@ int main()
     const TJanela janela { { 0.0, 0.0, -dJanela }, wJanela, hJanela, wCanvas, hCanvas };
 
     std::unique_ptr<IArquivoSaida> arq = FuncoesGerais::FabricaArquivo(
-        EFormatoImagem::BMP, "teste", janela.LarguraCanvas(), janela.AlturaCanvas()
+        EFormatoImagem::LOG, "teste", janela.LarguraCanvas(), janela.AlturaCanvas()
     );
 
     const bool erro = !arq->Aberto();
