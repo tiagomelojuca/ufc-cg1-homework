@@ -33,6 +33,7 @@
 //    o raio P(s) = P_i + s*vetor_l  esta sendo obstruido plea esfera.
 // ------------------------------------------------------------------------------------------------
 
+#include <algorithm>
 #include <cstdint>
 #include <cmath>
 #include <fstream>
@@ -40,7 +41,28 @@
 #include <vector>
 #include <memory>
 
-#include "BitmapPlusPlus.hpp"
+// #define UTILIZA_BITMAP_PLUS_PLUS
+
+#ifdef UTILIZA_BITMAP_PLUS_PLUS
+    #include "BitmapPlusPlus.hpp"
+#else
+    // Fiz a exportacao em bitmap so pra ajudar nas minhas depuracoes,
+    // nao vou mandar junto. Se nao tem a biblioteca, usa essa classe
+    // dummy que implementa a interface necessaria com stubs, so pro
+    // compilador nao reclamar, dai TArquivoBMP nao faz nada nesse caso
+    namespace bmp
+    {
+        struct Pixel { std::uint8_t _1; std::uint8_t _2; std::uint8_t _3; };
+        struct Bitmap
+        {
+            Bitmap(std::int32_t, std::int32_t) {}
+            std::int32_t width() const { return 0; };
+            std::int32_t height() const { return 0; };
+            void set(const std::int32_t, const std::int32_t, const Pixel) {};
+            void save(const std::string&) {}
+        };
+    }
+#endif
 
 // ------------------------------------------------------------------------------------------------
 
@@ -1274,7 +1296,7 @@ std::unique_ptr<IArquivoSaida> FabricaArquivo(
 int main()
 {
     TCena3D cena = FabricaCena();
-    const std::unique_ptr<IArquivoSaida> arq = FabricaArquivo("a", EFormatoImagem::BMP, cena);
+    const std::unique_ptr<IArquivoSaida> arq = FabricaArquivo("a", EFormatoImagem::PPM, cena);
 
     const bool erro = !arq->Aberto();
     if (!erro)
