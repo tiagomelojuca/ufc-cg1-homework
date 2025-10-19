@@ -105,6 +105,25 @@ public:
         return ret;
     }
 
+    void Clamp(double min, double max)
+    {
+        ClampX(min, max);
+        ClampY(min, max);
+        ClampZ(min, max);
+    }
+    void ClampX(double min, double max)
+    {
+        _x = std::clamp(_x, min, max);
+    }
+    void ClampY(double min, double max)
+    {
+        _y = std::clamp(_y, min, max);
+    }
+    void ClampZ(double min, double max)
+    {
+        _z = std::clamp(_z, min, max);
+    }
+
 protected:
     double _x = 0.0;
     double _y = 0.0;
@@ -215,6 +234,73 @@ private:
 
 // ------------------------------------------------------------------------------------------------
 
+class TMaterial
+{
+public:
+    TMaterial() = default;
+
+    double KdR() const
+    {
+        return _kdR;
+    }
+    void KdR(double r)
+    {
+        _kdR = r;
+    }
+    double KdG() const
+    {
+        return _kdG;
+    }
+    void KdG(double g)
+    {
+        _kdG = g;
+    }
+    double KdB() const
+    {
+        return _kdB;
+    }
+    void KdB(double b)
+    {
+        _kdB = b;
+    }
+
+    double KeR() const
+    {
+        return _keR;
+    }
+    void KeR(double r)
+    {
+        _keR = r;
+    }
+    double KeG() const
+    {
+        return _keG;
+    }
+    void KeG(double g)
+    {
+        _keG = g;
+    }
+    double KeB() const
+    {
+        return _keB;
+    }
+    void KeB(double b)
+    {
+        _keB = b;
+    }
+
+private:
+    double _kdR = 0.0;
+    double _kdG = 0.0;
+    double _kdB = 0.0;
+
+    double _keR = 0.0;
+    double _keG = 0.0;
+    double _keB = 0.0;
+};
+
+// ------------------------------------------------------------------------------------------------
+
 class IEntidade3D
 {
 public:
@@ -239,15 +325,15 @@ public:
 
     const TPonto3D& Centro() const { return _centro; }
     double Raio() const { return _raio; }
-    const TCor& Cor() const { return _cor; }
 
-    void Cor(const TCor& cor) { _cor = cor; }
+    const TMaterial& Material() const { return _material; }
+    void Material(const TMaterial& material) { _material = material; }
 
 private:
     TPonto3D _centro;
     double _raio = 0.0;
 
-    TCor _cor;
+    TMaterial _material;
 };
 
 // ------------------------------------------------------------------------------------------------
@@ -732,6 +818,7 @@ private:
     {
         const TVetor3D d = FuncoesGeometricas::Versor(_p0, p);
         const TRaio3D raio { _p0, d };
+        const TMaterial& material = esfera.Material();
         const std::vector<double> intersecoes = FuncoesGeometricas::Intersecoes(raio, esfera);
 
         if (intersecoes.empty())
@@ -739,7 +826,6 @@ private:
             return _bgColor;
         }
 
-        const TCor corEsfera = esfera.Cor();
         const TPonto3D pFonte = { 0.0, 5.0, 0.0 };
         const TPonto3D p1 = raio.Ponto(intersecoes[0]);
 
@@ -749,17 +835,18 @@ private:
         const TVetor3D r = (n * 2.0 * n.Dot(l)) - l;
 
         const TPonto3D iFonte { 0.7, 0.7, 0.7 };
-        const TPonto3D kd { 1.0, 1.0, 1.0 };
-        const TPonto3D ke { 1.0, 1.0, 1.0 };
+        const TPonto3D kd { material.KdR(), material.KdG(), material.KdB() };
+        const TPonto3D ke { material.KeR(), material.KeG(), material.KeB() };
 
-        const double m = 100.0;
+        const double m = 10.0;
         const double fd = std::max(0.0, n.Dot(l));
         const double fe = pow(std::max(v.Dot(r), 0.0), m);
 
         const auto id = TVetor3D(iFonte).Arroba(kd) * fd;
         const auto ie = TVetor3D(iFonte).Arroba(ke) * fe;
         const TVetor3D i = id + ie;
-        const TVetor3D c = i.Arroba(TVetor3D(corEsfera.R(), corEsfera.G(), corEsfera.B()));
+        TVetor3D c = i.Arroba(TVetor3D(255.0, 255.0, 255.0));
+        c.Clamp(0.0, 255.0);
 
         return FuncoesGerais::Vec2Cor(c);
     }
@@ -787,14 +874,22 @@ int main()
     const TJanela janela { { 0.0, 0.0, -dJanela }, wJanela, hJanela, wCanvas, hCanvas };
 
     std::unique_ptr<IArquivoSaida> arq = FuncoesGerais::FabricaArquivo(
-        EFormatoImagem::LOG, "teste", janela.LarguraCanvas(), janela.AlturaCanvas()
+        EFormatoImagem::BMP, "teste", janela.LarguraCanvas(), janela.AlturaCanvas()
     );
 
     const bool erro = !arq->Aberto();
     if (!erro)
     {
+        TMaterial material;
+        material.KdR(1.0);
+        material.KdG(0.0);
+        material.KdB(0.0);
+        material.KeR(1.0);
+        material.KeG(1.0);
+        material.KeB(1.0);
+
         TEsfera esfera { { 0.0, 0.0, -20.0 }, 4.0 };
-        esfera.Cor({ 255u, 0u, 0u });
+        esfera.Material(material);
 
         // TEsfera esfera2 { { -10.0, -10.0, -55.0 }, 4.0 };
         // esfera2.Cor({ 0u, 255u, 0u });
