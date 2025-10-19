@@ -392,9 +392,9 @@ public:
                     << "B = " << std::to_string(cor.B()) << ";\n";
             
             _coordX++;
-            if (_coordX == _largura + 1)
+            if (_coordX == _largura)
             {
-                _coordX = 1;
+                _coordX = 0;
                 _coordY++;
             }
         }
@@ -413,8 +413,8 @@ private:
     uint16_t _altura;
 
     std::ofstream _stream;
-    uint16_t _coordX = 1;
-    uint16_t _coordY = 1;
+    uint16_t _coordX = 0;
+    uint16_t _coordY = 0;
 };
 
 // ------------------------------------------------------------------------------------------------
