@@ -1061,16 +1061,43 @@ private:
                 const TPonto3D& pFonte = fontePontual->Posicao();
                 const TVetor3D& iFonte = fontePontual->Intensidade();
                 
-                const TVetor3D l = TVetor3D { pFonte - pi }.Normalizado();
-                const TVetor3D r = (n * 2.0 * n.Dot(l)) - l;
-                const double fd = std::max(0.0, n.Dot(l));
-                const double fe = pow(std::max(v.Dot(r), 0.0), material.M());
+                const TVetor3D L = pFonte - pi;
+                const TVetor3D l = L.Normalizado();
+                const TRaio3D shadowRay { pi, l };
 
-                const auto id = iFonte.Arroba(kd) * fd;
-                const auto ie = iFonte.Arroba(ke) * fe;
+                bool temEntidadeBloqueandoLuz = false;
+                for (const std::unique_ptr<IEntidade3D>& outraEntidade : _entidades)
+                {
+                    if (&entidade != outraEntidade.get())
+                    {
+                        const std::vector<double> intersecoes = IntersecoesValidas(
+                            *outraEntidade, shadowRay
+                        );
+                        
+                        if (!intersecoes.empty())
+                        {
+                            const double intersecaoMaisProxima = intersecoes[0];
 
-                const TVetor3D iCorrente = id + ie;
-                i += iCorrente;
+                            if (intersecaoMaisProxima < L.Norma())
+                            {
+                                temEntidadeBloqueandoLuz = true;
+                            }
+                        }
+                    }
+                }
+
+                if (!temEntidadeBloqueandoLuz)
+                {
+                    const TVetor3D r = (n * 2.0 * n.Dot(l)) - l;
+                    const double fd = std::max(0.0, n.Dot(l));
+                    const double fe = pow(std::max(v.Dot(r), 0.0), material.M());
+
+                    const auto id = iFonte.Arroba(kd) * fd;
+                    const auto ie = iFonte.Arroba(ke) * fe;
+
+                    const TVetor3D iCorrente = id + ie;
+                    i += iCorrente;
+                }
             }
         }
 
