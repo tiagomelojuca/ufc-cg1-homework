@@ -477,11 +477,10 @@ public:
 
 private:
     std::string _rotulo;
+    TMaterial _material;
 
     TPonto3D _p;
     TVetor3D _n;
-
-    TMaterial _material;
 };
 
 // ------------------------------------------------------------------------------------------------
@@ -548,10 +547,97 @@ public:
 
 private:
     std::string _rotulo;
+    TMaterial _material;
 
     TPonto3D _centro;
     double _raio = 0.0;
+};
 
+// ------------------------------------------------------------------------------------------------
+
+class TCilindro : public IEntidade3D
+{
+public:
+    IEntidade3D* Copia() const override
+    {
+        return new TCilindro(*this);
+    }
+
+    std::string Rotulo() const override
+    {
+        return _rotulo;
+    }
+    void Rotulo(const std::string& rotulo)
+    {
+        _rotulo = rotulo;
+    }
+
+    TMaterial Material() const override
+    {
+        return _material;
+    }
+    void Material(const TMaterial& material)
+    {
+        _material = material;
+    }
+
+    TVetor3D Normal(const TPonto3D& p) const override
+    {
+        return TVetor3D{};
+    }
+    std::vector<double> Intersecoes(const TRaio3D& raio) const override
+    {
+        std::vector<double> intersecoes;
+
+        return intersecoes;
+    }
+
+private:
+    std::string _rotulo;
+    TMaterial _material;
+};
+
+// ------------------------------------------------------------------------------------------------
+
+class TCone : public IEntidade3D
+{
+public:
+    IEntidade3D* Copia() const override
+    {
+        return new TCone(*this);
+    }
+
+    std::string Rotulo() const override
+    {
+        return _rotulo;
+    }
+    void Rotulo(const std::string& rotulo)
+    {
+        _rotulo = rotulo;
+    }
+
+    TMaterial Material() const override
+    {
+        return _material;
+    }
+    void Material(const TMaterial& material)
+    {
+        _material = material;
+    }
+
+    TVetor3D Normal(const TPonto3D& p) const override
+    {
+        return TVetor3D{};
+    }
+    std::vector<double> Intersecoes(const TRaio3D& raio) const override
+    {
+        std::vector<double> intersecoes;
+
+        return intersecoes;
+    }
+
+private:
+    std::string _rotulo;
     TMaterial _material;
 };
 
@@ -1185,6 +1271,36 @@ TEsfera FabricaEsfera()
 
 // ------------------------------------------------------------------------------------------------
 
+TCilindro FabricaCilindro(const TEsfera& ref)
+{
+    TCilindro cilindro;
+
+    // >> Centro da base localizado no centro da esfera
+    // >> Raio da base igual a im terço do Raio da esfera 
+    // >> Altura do cilindro igual tres vezes o Raio da esfera
+    // >> Vetor-direcao do cilindro d_cil = (-1/sqrt(3), 1/sqrt(3), -1/sqrt(3))
+    // >> Kd = Ke = Ka = ( 0.2, 0.3, 0.8)
+
+    return cilindro;
+}
+
+// ------------------------------------------------------------------------------------------------
+
+TCone FabricaCone(const TEsfera& esferaRef, const TCilindro& cilindroRef)
+{
+    TCone cone;
+
+    // >> Centro da base localizado no centro do topo do cilindro
+    // >> Raio da base igual a 1.5*Raio da esfera
+    // >> Altura do cone igual a (1/3)Raio da base
+    // >> Vetor-direcao do cilindro d_cil = (-1/sqrt(3), 1/sqrt(3), -1/sqrt(3))
+    // >>  Kd = Ke = Ka = ( 0.8, 0.3, 0.2)
+
+    return cone;
+}
+
+// ------------------------------------------------------------------------------------------------
+
 TPlano FabricaPlanoChao(const TEsfera& esfera)
 {
     TMaterial material;
@@ -1250,11 +1366,15 @@ TCena3D FabricaCena()
 
     const TFontePontual fontePontual { { 0.0, 60.0, -30.0 }, { 0.7, 0.7, 0.7 } };
     const TEsfera esfera = FabricaEsfera();
+    const TCilindro cilindro = FabricaCilindro(esfera);
+    const TCone cone = FabricaCone(esfera, cilindro);
     const TPlano planoChao = FabricaPlanoChao(esfera);
     const TPlano planoFundo = FabricaPlanoFundo();
 
     cena.Insere(fontePontual);
     cena.Insere(esfera);
+    cena.Insere(cilindro);
+    cena.Insere(cone);
     cena.Insere(planoChao);
     cena.Insere(planoFundo);
 
