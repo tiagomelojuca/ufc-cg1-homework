@@ -1273,13 +1273,28 @@ TEsfera FabricaEsfera()
 
 TCilindro FabricaCilindro(const TEsfera& ref)
 {
-    TCilindro cilindro;
+    TMaterial material;
+    material.KdR(0.2);
+    material.KdG(0.3);
+    material.KdB(0.8);
+    material.KeR(0.2);
+    material.KeG(0.3);
+    material.KeB(0.8);
+    material.KaR(0.2);
+    material.KaG(0.3);
+    material.KaB(0.8);
+    material.M(10.0);
 
-    // >> Centro da base localizado no centro da esfera
-    // >> Raio da base igual a im terço do Raio da esfera 
-    // >> Altura do cilindro igual tres vezes o Raio da esfera
-    // >> Vetor-direcao do cilindro d_cil = (-1/sqrt(3), 1/sqrt(3), -1/sqrt(3))
-    // >> Kd = Ke = Ka = ( 0.2, 0.3, 0.8)
+    TCilindro cilindro;
+    cilindro.Rotulo("CILINDRO_1");
+    cilindro.Material(material);
+
+    const double moduloComponente = 1.0 / sqrt(3.0);
+
+    const TPonto3D& cBaseCilindro = ref.Centro();
+    const double rBaseCilindro = ref.Raio() / 3.0;
+    const double hCilindro = 3.0 * ref.Raio();
+    const TVetor3D dCilindro { -moduloComponente, moduloComponente, -moduloComponente };
 
     return cilindro;
 }
@@ -1288,13 +1303,26 @@ TCilindro FabricaCilindro(const TEsfera& ref)
 
 TCone FabricaCone(const TEsfera& esferaRef, const TCilindro& cilindroRef)
 {
-    TCone cone;
+    TMaterial material;
+    material.KdR(0.8);
+    material.KdG(0.3);
+    material.KdB(0.2);
+    material.KeR(0.8);
+    material.KeG(0.3);
+    material.KeB(0.2);
+    material.KaR(0.8);
+    material.KaG(0.3);
+    material.KaB(0.2);
+    material.M(10.0);
 
-    // >> Centro da base localizado no centro do topo do cilindro
-    // >> Raio da base igual a 1.5*Raio da esfera
-    // >> Altura do cone igual a (1/3)Raio da base
-    // >> Vetor-direcao do cilindro d_cil = (-1/sqrt(3), 1/sqrt(3), -1/sqrt(3))
-    // >>  Kd = Ke = Ka = ( 0.8, 0.3, 0.2)
+    TCone cone;
+    cone.Rotulo("CONE_1");
+    cone.Material(material);
+
+    // const TPonto3D& cBaseCone = cTopoCilindroRef;
+    const double rBaseCone = 1.5 * esferaRef.Raio();
+    const double hCone = esferaRef.Raio() / 3.0;
+    // const TVetor3D& dCone = dCilindroRef;
 
     return cone;
 }
