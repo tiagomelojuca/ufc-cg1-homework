@@ -765,6 +765,11 @@ namespace FuncoesGerais
         return m;
     }
 
+    TVetor3D Mtx2Vec(const TMatriz& m)
+    {
+        return TVetor3D { m[1][1], m[2][1], m[3][1] };
+    }
+
     TMatriz Identidade(int ordem)
     {
         TMatriz I { ordem, ordem };
@@ -1114,7 +1119,9 @@ class TCilindro : public IEntidade3D
 {
 public:
     TCilindro(const TPonto3D& pCentroBase, double raio, double altura, const TVetor3D& direcao)
-        : _c(pCentroBase), _r(raio), _h(altura), _d(direcao.Normalizado()) {}
+        : _c(pCentroBase), _r(raio), _h(altura), _d(direcao.Normalizado())
+    {
+    }
 
     IEntidade3D* Copia() const override
     {
@@ -1139,9 +1146,9 @@ public:
         _material = material;
     }
 
-    TVetor3D Normal(const TPonto3D& p) const override
+    TVetor3D Normal(const TPonto3D& /*p*/) const override
     {
-        return TVetor3D{};
+        return _n;
     }
     std::vector<double> Intersecoes(const TRaio3D& raio) const override
     {
@@ -1202,6 +1209,8 @@ private:
     double _r;
     double _h;
     TVetor3D _d;
+
+    TVetor3D _n;
 };
 
 // ------------------------------------------------------------------------------------------------
@@ -1210,7 +1219,10 @@ class TCone : public IEntidade3D
 {
 public:
     TCone(const TPonto3D& pCentroBase, double raioBase, double altura, const TVetor3D& direcao)
-        : _c(pCentroBase), _r(raioBase), _h(altura), _d(direcao.Normalizado()) {}
+        : _c(pCentroBase), _r(raioBase), _h(altura), _d(direcao.Normalizado())
+    {
+        _v = _c + _d * _h;
+    }
 
     IEntidade3D* Copia() const override
     {
@@ -1237,7 +1249,13 @@ public:
 
     TVetor3D Normal(const TPonto3D& p) const override
     {
-        return TVetor3D{};
+        TVetor3D _s = _v - p;
+        _s = _s.Normalizado();
+
+        TMatriz s = FuncoesGerais::Vec2Mtx(_s);
+        TMatriz M = FuncoesGerais::Identidade(3) - s * s.Transposta();
+
+        return FuncoesGerais::Mtx2Vec(M * FuncoesGerais::Vec2Mtx(_d)).Normalizado();
     }
     std::vector<double> Intersecoes(const TRaio3D& raio) const override
     {
@@ -1254,7 +1272,7 @@ public:
 
         const TMatriz Mbarra = dc * dc.Transposta();
         const TMatriz Masterisco = Mbarra - M * hr;
-        
+
         const TMatriz w = FuncoesGerais::Vec2Mtx(raio.Origem() - _c);
         const TMatriz wT = w.Transposta();
 
@@ -1300,6 +1318,8 @@ private:
     double _r;
     double _h;
     TVetor3D _d;
+
+    TPonto3D _v;
 };
 
 // ------------------------------------------------------------------------------------------------
@@ -1638,7 +1658,7 @@ TCilindro FabricaCilindro(const TEsfera& ref)
     material.M(10.0);
 
     const TPonto3D& cBaseCilindro = ref.Centro();
-    const double rBaseCilindro = ref.Raio() / 3.0;
+    const double rBaseCilindro = ref.Raio() / 1.0;
     const double hCilindro = 3.0 * ref.Raio();
     const double k = 1.0 / sqrt(3.0);
     const TVetor3D dCilindro { -k, k, -k };
@@ -1752,8 +1772,8 @@ TCena3D FabricaCena()
 
     cena.Insere(fontePontual);
     cena.Insere(esfera);
-    // cena.Insere(cilindro);
-    cena.Insere(cone);
+    cena.Insere(cilindro);
+    // cena.Insere(cone);
     cena.Insere(planoChao);
     cena.Insere(planoFundo);
 
