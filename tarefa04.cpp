@@ -1121,6 +1121,10 @@ public:
     TCilindro(const TPonto3D& pCentroBase, double raio, double altura, const TVetor3D& direcao)
         : _c(pCentroBase), _r(raio), _h(altura), _d(direcao.Normalizado())
     {
+        const TMatriz dc = FuncoesGerais::Vec2Mtx(_d);
+        const TMatriz I = FuncoesGerais::Identidade(3);
+
+        _M = I * dc * dc.Transposta();
     }
 
     IEntidade3D* Copia() const override
@@ -1146,19 +1150,16 @@ public:
         _material = material;
     }
 
-    TVetor3D Normal(const TPonto3D& /*p*/) const override
+    TVetor3D Normal(const TPonto3D& p) const override
     {
-        return _n;
+        return FuncoesGerais::Mtx2Vec(_M * FuncoesGerais::Vec2Mtx(p - _c));
     }
     std::vector<double> Intersecoes(const TRaio3D& raio) const override
     {
         std::vector<double> intersecoes;
 
         const TMatriz dr = FuncoesGerais::Vec2Mtx(raio.Direcao());
-        const TMatriz dc = FuncoesGerais::Vec2Mtx(_d);
 
-        const TMatriz I = FuncoesGerais::Identidade(3);
-        const TMatriz M = I * dc * dc.Transposta();
         const TMatriz w = FuncoesGerais::Vec2Mtx(raio.Origem() - _c);
         const TMatriz wT = w.Transposta();
         // r_ = M__ s_
@@ -1167,9 +1168,9 @@ public:
         // nr_ = || ri_ || / Rc
         // ri_ = M__ si_
 
-        const double a = TMatriz(dr.Transposta() * M * dr)[1][1];
-        const double b = TMatriz(2.0 * wT * M * dr)[1][1];
-        const double c = TMatriz(wT * M * w)[1][1] - _r * _r;
+        const double a = TMatriz(dr.Transposta() * _M * dr)[1][1];
+        const double b = TMatriz(2.0 * wT * _M * dr)[1][1];
+        const double c = TMatriz(wT * _M * w)[1][1] - _r * _r;
 
         const double delta = b * b - 4.0 * a * c;
 
@@ -1178,8 +1179,24 @@ public:
             return intersecoes;
         }
 
-        intersecoes.push_back((-b - sqrt(delta)) / 2.0 * a);
-        intersecoes.push_back((-b + sqrt(delta)) / 2.0 * a);
+        const double t1 = (-b - sqrt(delta)) / 2.0 * a;
+        const TVetor3D s1 = raio.Ponto(t1) - _c;
+        const double s1dc = s1.Dot(_d);
+        const bool t1Valido = s1dc >= 0.0 && s1dc <= _h;
+
+        const double t2 = (-b + sqrt(delta)) / 2.0 * a;
+        const TVetor3D s2 = raio.Ponto(t2) - _c;
+        const double s2dc = s2.Dot(_d);
+        const bool t2Valido = s2dc >= 0.0 && s2dc <= _h;
+
+        if (t1Valido)
+        {
+            intersecoes.push_back(t1);
+        }
+        if (t2Valido)
+        {
+            intersecoes.push_back(t2);
+        }
 
         return intersecoes;
     }
@@ -1211,6 +1228,7 @@ private:
     TVetor3D _d;
 
     TVetor3D _n;
+    TMatriz _M;
 };
 
 // ------------------------------------------------------------------------------------------------
