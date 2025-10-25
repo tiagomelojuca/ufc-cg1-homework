@@ -1692,7 +1692,7 @@ TCilindro FabricaCilindro(const TEsfera& ref)
     material.M(10.0);
 
     const TPonto3D& cBaseCilindro = ref.Centro();
-    const double rBaseCilindro = ref.Raio() / 1.0;
+    const double rBaseCilindro = ref.Raio() / 3.0;
     const double hCilindro = 3.0 * ref.Raio();
     const double k = 1.0 / sqrt(3.0);
     const TVetor3D dCilindro { -k, k, -k };
