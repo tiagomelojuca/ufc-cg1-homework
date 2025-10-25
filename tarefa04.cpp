@@ -176,8 +176,24 @@ public:
         return t;
     }
 
-    // Produto com outra matriz (retorno por copia).
-    // Se dimensões incompatíveis, retorna matriz degenerada (0x0).
+    TMatriz Soma(const TMatriz& outra) const
+    {
+        if (Degenerada() || outra.Degenerada()) return TMatriz();
+        if (_nLinhas != outra._nLinhas || _nColunas != outra._nColunas) return TMatriz(); // incompatível
+
+        TMatriz res(_nLinhas, outra._nColunas);
+
+        for (int i = 1; i <= _nLinhas; ++i)
+        {
+            for (int j = 1; j <= outra._nColunas; ++j)
+            {
+                res[i][j] = (*this)[i][j] + outra[i][j];
+            }
+        }
+
+        return res;
+    }
+
     TMatriz Produto(const TMatriz& outra) const
     {
         if (Degenerada() || outra.Degenerada()) return TMatriz();
@@ -201,13 +217,21 @@ public:
         return res;
     }
 
-    // operador * delega a Produto
+    TMatriz operator+(const TMatriz& outra) const
+    {
+        return Soma(outra);
+    }
+    TMatriz operator-(const TMatriz& outra) const
+    {
+        const TMatriz simetricaOutra = -1.0 * outra;
+        return Soma(simetricaOutra);
+    }
+
     TMatriz operator*(const TMatriz& outra) const
     {
         return Produto(outra);
     }
 
-    // Multiplicação por escalar (in-place)
     TMatriz& operator*=(double k)
     {
         if (!Degenerada() && _dados != nullptr)
@@ -218,7 +242,6 @@ public:
         return *this;
     }
 
-    // Multiplicação por escalar (retorna nova matriz)
     TMatriz operator*(double k) const
     {
         if (Degenerada()) return TMatriz();
@@ -228,7 +251,6 @@ public:
         return res;
     }
 
-    // Multiplicação escalar à esquerda
     friend TMatriz operator*(double k, const TMatriz& m)
     {
         return m * k;
@@ -743,6 +765,21 @@ namespace FuncoesGerais
         return m;
     }
 
+    TMatriz Identidade(int ordem)
+    {
+        TMatriz I { ordem, ordem };
+
+        for (int i = 1; i <= ordem; i++)
+        {
+            for (int j = 1; j <= ordem; j++)
+            {
+                I[i][j] = i == j ? 1.0 : 0.0;
+            }
+        }
+
+        return I;
+    }
+
     std::unique_ptr<IArquivoSaida> FabricaArquivo(
         EFormatoImagem formato,
         const std::string& nomeArquivo,
@@ -1110,18 +1147,10 @@ public:
     {
         std::vector<double> intersecoes;
 
-        TMatriz I { 3, 3 };
-        for (int i = 1; i <= 3; i++)
-        {
-            for (int j = 1; j <= 3; j++)
-            {
-                I[i][j] = i == j ? 1.0 : 0.0;
-            }
-        }
-
         const TMatriz dr = FuncoesGerais::Vec2Mtx(raio.Direcao());
         const TMatriz dc = FuncoesGerais::Vec2Mtx(_d);
 
+        const TMatriz I = FuncoesGerais::Identidade(3);
         const TMatriz M = I * dc * dc.Transposta();
         const TMatriz w = FuncoesGerais::Vec2Mtx(raio.Origem() - _c);
         const TMatriz wT = w.Transposta();
@@ -1214,13 +1243,34 @@ public:
     {
         std::vector<double> intersecoes;
 
-        const double a = 0.0; // drT_ M*__ dr_
-        const double b = 0.0; // 2 wT_ M*__ dr_ - 2H drT_ dc_
-        const double c = 0.0; // wT_ M*__ w_ - 2H wT_ dc_ + H^2
+        const TMatriz dc = FuncoesGerais::Vec2Mtx(_d);
+        const TMatriz I = FuncoesGerais::Identidade(3);
+        const TMatriz M = I * dc * dc.Transposta();
+        const TMatriz dr = FuncoesGerais::Vec2Mtx(raio.Direcao());
+        const TMatriz drT = dr.Transposta();
 
-        // M*__ = _M__ - (H/R)^2 M__
-        // _M__ = dc_ dcT_
-        // M__ = I dc_ dcT_
+        double hr = _h / _r;
+        hr *= hr;
+
+        const TMatriz Mbarra = dc * dc.Transposta();
+        const TMatriz Masterisco = Mbarra - M * hr;
+        
+        const TMatriz w = FuncoesGerais::Vec2Mtx(raio.Origem() - _c);
+        const TMatriz wT = w.Transposta();
+
+        const double a = TMatriz(drT * Masterisco * dr)[1][1];
+        const double b = TMatriz(2.0 * wT * Masterisco * dr - 2.0 * _h * drT * dc)[1][1];
+        const double c = TMatriz(wT * Masterisco * w - 2.0 * _h * wT * dc)[1][1] + _h * _h;
+
+        const double delta = b * b - 4.0 * a * c;
+
+        if (delta < 0.0)
+        {
+            return intersecoes;
+        }
+
+        intersecoes.push_back((-b - sqrt(delta)) / 2.0 * a);
+        intersecoes.push_back((-b + sqrt(delta)) / 2.0 * a);
 
         return intersecoes;
     }
@@ -1702,7 +1752,7 @@ TCena3D FabricaCena()
 
     cena.Insere(fontePontual);
     cena.Insere(esfera);
-    cena.Insere(cilindro);
+    // cena.Insere(cilindro);
     cena.Insere(cone);
     cena.Insere(planoChao);
     cena.Insere(planoFundo);
