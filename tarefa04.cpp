@@ -558,6 +558,9 @@ private:
 class TCilindro : public IEntidade3D
 {
 public:
+    TCilindro(const TPonto3D& pCentroBase, double raio, double altura, const TVetor3D& direcao)
+        : _c(pCentroBase), _r(raio), _h(altura), _d(direcao.Normalizado()) {}
+
     IEntidade3D* Copia() const override
     {
         return new TCilindro(*this);
@@ -592,9 +595,31 @@ public:
         return intersecoes;
     }
 
+    const TPonto3D& CentroBase() const
+    {
+        return _c;
+    }
+    double Raio() const
+    {
+        return _r;
+    }
+    double Altura() const
+    {
+        return _h;
+    }
+    const TVetor3D& Direcao() const
+    {
+        return _d;
+    }
+
 private:
     std::string _rotulo;
     TMaterial _material;
+
+    TPonto3D _c;
+    double _r;
+    double _h;
+    TVetor3D _d;
 };
 
 // ------------------------------------------------------------------------------------------------
@@ -602,6 +627,9 @@ private:
 class TCone : public IEntidade3D
 {
 public:
+    TCone(const TPonto3D& pCentroBase, double raioBase, double altura, const TVetor3D& direcao)
+        : _c(pCentroBase), _r(raioBase), _h(altura), _d(direcao.Normalizado()) {}
+
     IEntidade3D* Copia() const override
     {
         return new TCone(*this);
@@ -636,9 +664,31 @@ public:
         return intersecoes;
     }
 
+    const TPonto3D& CentroBase() const
+    {
+        return _c;
+    }
+    double RaioBase() const
+    {
+        return _r;
+    }
+    double Altura() const
+    {
+        return _h;
+    }
+    const TVetor3D& Direcao() const
+    {
+        return _d;
+    }
+
 private:
     std::string _rotulo;
     TMaterial _material;
+
+    TPonto3D _c;
+    double _r;
+    double _h;
+    TVetor3D _d;
 };
 
 // ------------------------------------------------------------------------------------------------
@@ -1285,16 +1335,15 @@ TCilindro FabricaCilindro(const TEsfera& ref)
     material.KaB(0.8);
     material.M(10.0);
 
-    TCilindro cilindro;
-    cilindro.Rotulo("CILINDRO_1");
-    cilindro.Material(material);
-
-    const double moduloComponente = 1.0 / sqrt(3.0);
-
     const TPonto3D& cBaseCilindro = ref.Centro();
     const double rBaseCilindro = ref.Raio() / 3.0;
     const double hCilindro = 3.0 * ref.Raio();
-    const TVetor3D dCilindro { -moduloComponente, moduloComponente, -moduloComponente };
+    const double k = 1.0 / sqrt(3.0);
+    const TVetor3D dCilindro { -k, k, -k };
+
+    TCilindro cilindro { cBaseCilindro, rBaseCilindro, hCilindro, dCilindro };
+    cilindro.Rotulo("CILINDRO_1");
+    cilindro.Material(material);
 
     return cilindro;
 }
@@ -1315,14 +1364,14 @@ TCone FabricaCone(const TEsfera& esferaRef, const TCilindro& cilindroRef)
     material.KaB(0.2);
     material.M(10.0);
 
-    TCone cone;
-    cone.Rotulo("CONE_1");
-    cone.Material(material);
-
-    // const TPonto3D& cBaseCone = cTopoCilindroRef;
+    const TPonto3D& cBaseCone = cilindroRef.Direcao() * cilindroRef.Altura();
     const double rBaseCone = 1.5 * esferaRef.Raio();
     const double hCone = esferaRef.Raio() / 3.0;
-    // const TVetor3D& dCone = dCilindroRef;
+    const TVetor3D& dCone = cilindroRef.Direcao();
+
+    TCone cone { cBaseCone, rBaseCone, hCone, dCone };
+    cone.Rotulo("CONE_1");
+    cone.Material(material);
 
     return cone;
 }
