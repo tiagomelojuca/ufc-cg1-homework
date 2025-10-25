@@ -1305,8 +1305,24 @@ public:
             return intersecoes;
         }
 
-        intersecoes.push_back((-b - sqrt(delta)) / 2.0 * a);
-        intersecoes.push_back((-b + sqrt(delta)) / 2.0 * a);
+        const double t1 = (-b - sqrt(delta)) / 2.0 * a;
+        const TVetor3D s1 = raio.Ponto(t1) - _c;
+        const double s1dc = s1.Dot(_d);
+        const bool t1Valido = s1dc >= 0.0 && s1dc <= _h;
+
+        const double t2 = (-b + sqrt(delta)) / 2.0 * a;
+        const TVetor3D s2 = raio.Ponto(t2) - _c;
+        const double s2dc = s2.Dot(_d);
+        const bool t2Valido = s2dc >= 0.0 && s2dc <= _h;
+
+        if (t1Valido)
+        {
+            intersecoes.push_back(t1);
+        }
+        if (t2Valido)
+        {
+            intersecoes.push_back(t2);
+        }
 
         return intersecoes;
     }
@@ -1791,7 +1807,7 @@ TCena3D FabricaCena()
     cena.Insere(fontePontual);
     cena.Insere(esfera);
     cena.Insere(cilindro);
-    // cena.Insere(cone);
+    cena.Insere(cone);
     cena.Insere(planoChao);
     cena.Insere(planoFundo);
 
