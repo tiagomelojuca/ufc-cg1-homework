@@ -51,6 +51,204 @@
 
 // ------------------------------------------------------------------------------------------------
 
+class TMatriz
+{
+public:
+    class TProxy
+    {
+    public:
+        TProxy(double* rowPtr, int nCols) : _row(rowPtr), _nCols(nCols) {}
+        double& operator[](int col)
+        {
+            // 1-based column indexing: valid columns are 1.._nCols
+            if (_row == nullptr || col < 1 || col > _nCols)
+            {
+                return Dummy();
+            }
+            return _row[col - 1];
+        }
+        const double& operator[](int col) const
+        {
+            if (_row == nullptr || col < 1 || col > _nCols)
+            {
+                return Dummy();
+            }
+            return _row[col - 1];
+        }
+
+    private:
+        static double& Dummy()
+        {
+            static double d = 0.0;
+            return d;
+        }
+
+        double* _row = nullptr;
+        int _nCols = 0;
+    };
+
+    TMatriz() = default;
+
+    TMatriz(int nLinhas, int nColunas)
+        : _nLinhas(nLinhas), _nColunas(nColunas)
+    {
+        if (!Degenerada())
+        {
+            _dados = new double[static_cast<size_t>(_nLinhas) * _nColunas];
+            for (int i = 0; i < _nLinhas * _nColunas; ++i) _dados[i] = 0.0;
+        }
+    }
+
+    TMatriz(const TMatriz& outra)
+        : _nLinhas(outra._nLinhas), _nColunas(outra._nColunas)
+    {
+        if (!Degenerada())
+        {
+            const size_t n = static_cast<size_t>(_nLinhas) * _nColunas;
+            _dados = new double[n];
+            for (size_t i = 0; i < n; ++i) _dados[i] = outra._dados[i];
+        }
+    }
+
+    TMatriz(TMatriz&& outro) noexcept
+        : _nLinhas(outro._nLinhas), _nColunas(outro._nColunas), _dados(outro._dados)
+    {
+        outro._nLinhas = 0;
+        outro._nColunas = 0;
+        outro._dados = nullptr;
+    }
+
+    TMatriz& operator=(TMatriz outra) // copy-and-swap (works for copy and move)
+    {
+        Swap(outra);
+        return *this;
+    }
+
+    ~TMatriz()
+    {
+        delete[] _dados;
+    }
+
+    int NLinhas() const { return _nLinhas; }
+    int NColunas() const { return _nColunas; }
+
+    bool Degenerada() const
+    {
+        return _nLinhas <= 0 || _nColunas <= 0;
+    }
+
+    // Acesso por linha -> proxy -> coluna
+    // 1-based line indexing: valid linhas are 1.._nLinhas
+    TProxy operator[](int linha)
+    {
+        if (linha < 1 || linha > _nLinhas || _dados == nullptr)
+        {
+            return TProxy(nullptr, 0);
+        }
+
+        return TProxy(_dados + static_cast<size_t>(linha - 1) * _nColunas, _nColunas);
+    }
+
+    const TProxy operator[](int linha) const
+    {
+        if (linha < 1 || linha > _nLinhas || _dados == nullptr)
+        {
+            return TProxy(nullptr, 0);
+        }
+
+        return TProxy(const_cast<double*>(_dados) + static_cast<size_t>(linha - 1) * _nColunas, _nColunas);
+    }
+
+    // Retorna a transposta por copia
+    TMatriz Transposta() const
+    {
+        if (Degenerada()) return TMatriz();
+
+        TMatriz t(_nColunas, _nLinhas);
+        for (int i = 1; i <= _nLinhas; ++i)
+        {
+            for (int j = 1; j <= _nColunas; ++j)
+            {
+                t[j][i] = (*this)[i][j];
+            }
+        }
+
+        return t;
+    }
+
+    // Produto com outra matriz (retorno por copia).
+    // Se dimensões incompatíveis, retorna matriz degenerada (0x0).
+    TMatriz Produto(const TMatriz& outra) const
+    {
+        if (Degenerada() || outra.Degenerada()) return TMatriz();
+        if (_nColunas != outra._nLinhas) return TMatriz(); // incompatível
+
+        TMatriz res(_nLinhas, outra._nColunas);
+
+        for (int i = 1; i <= _nLinhas; ++i)
+        {
+            for (int j = 1; j <= outra._nColunas; ++j)
+            {
+                double soma = 0.0;
+                for (int k = 1; k <= _nColunas; ++k)
+                {
+                    soma += (*this)[i][k] * outra[k][j];
+                }
+                res[i][j] = soma;
+            }
+        }
+
+        return res;
+    }
+
+    // operador * delega a Produto
+    TMatriz operator*(const TMatriz& outra) const
+    {
+        return Produto(outra);
+    }
+
+    // Multiplicação por escalar (in-place)
+    TMatriz& operator*=(double k)
+    {
+        if (!Degenerada() && _dados != nullptr)
+        {
+            const size_t n = static_cast<size_t>(_nLinhas) * _nColunas;
+            for (size_t i = 0; i < n; ++i) _dados[i] *= k;
+        }
+        return *this;
+    }
+
+    // Multiplicação por escalar (retorna nova matriz)
+    TMatriz operator*(double k) const
+    {
+        if (Degenerada()) return TMatriz();
+
+        TMatriz res(*this);
+        res *= k;
+        return res;
+    }
+
+    // Multiplicação escalar à esquerda
+    friend TMatriz operator*(double k, const TMatriz& m)
+    {
+        return m * k;
+    }
+
+private:
+    void Swap(TMatriz& outra) noexcept
+    {
+        std::swap(_nLinhas, outra._nLinhas);
+        std::swap(_nColunas, outra._nColunas);
+        std::swap(_dados, outra._dados);
+    }
+
+    int _nLinhas = 0;
+    int _nColunas = 0;
+    double* _dados = nullptr;
+};
+
+// ------------------------------------------------------------------------------------------------
+
 class TVetor4D
 {
 public:
@@ -254,6 +452,326 @@ private:
     uint8_t _g = 0;
     uint8_t _b = 0;
 };
+
+// ------------------------------------------------------------------------------------------------
+
+enum class EFormatoImagem { LOG, PPM, BMP };
+
+// ------------------------------------------------------------------------------------------------
+
+std::string Extensao(EFormatoImagem formato)
+{
+    if (formato == EFormatoImagem::LOG)
+    {
+        return "log";
+    }
+
+    if (formato == EFormatoImagem::PPM)
+    {
+        return "ppm";
+    }
+
+    if (formato == EFormatoImagem::BMP)
+    {
+        return "bmp";
+    }
+
+    return "";
+}
+
+// ------------------------------------------------------------------------------------------------
+
+class IArquivoSaida
+{
+public:
+    IArquivoSaida() = default;
+    virtual ~IArquivoSaida() = default;
+
+    virtual bool Aberto() const = 0;
+    virtual const char* Caminho() const = 0;
+    virtual bool Anexa(const TCor& cor) = 0;
+    virtual void Flush() = 0;
+};
+
+// ------------------------------------------------------------------------------------------------
+
+class TArquivoLOG : public IArquivoSaida
+{
+public:
+    TArquivoLOG() = delete;
+    TArquivoLOG(
+        const std::string& caminho,
+        uint16_t largura,
+        uint16_t altura
+    )
+        : _caminho(caminho),
+          _largura(largura),
+          _altura(altura)
+    {
+        _stream.open(_caminho);
+
+        if (_stream.is_open())
+        {
+            _stream << "W = " << std::to_string(_largura)
+                    << "; "
+                    << "H = "
+                    << std::to_string(altura)
+                    << ";\n";
+        }
+    }
+    ~TArquivoLOG()
+    {
+        _stream.close();
+    }
+
+    bool Aberto() const override
+    {
+        return _stream.is_open();
+    }
+    const char* Caminho() const override
+    {
+        return _caminho.c_str();
+    }
+
+    bool Anexa(const TCor& cor) override
+    {
+        const bool aberto = Aberto();
+
+        if (aberto)
+        {
+            _stream << "X = " << std::to_string(_coordX) << "; "
+                    << "Y = " << std::to_string(_coordY) << "; "
+                    << "R = " << std::to_string(cor.R()) << "; "
+                    << "G = " << std::to_string(cor.G()) << "; "
+                    << "B = " << std::to_string(cor.B()) << ";\n";
+            
+            _coordX++;
+            if (_coordX == _largura)
+            {
+                _coordX = 0;
+                _coordY++;
+            }
+        }
+        
+        return aberto;
+    }
+
+    bool Anexa(const std::string& logMsg)
+    {
+        const bool aberto = Aberto();
+
+        if (aberto)
+        {
+            _stream << "    " << logMsg << "\n";
+        }
+        
+        return aberto;
+    }
+
+    void Flush() override
+    {
+        _stream.flush();
+    }
+
+private:
+    std::string _caminho;
+    uint16_t _largura;
+    uint16_t _altura;
+
+    std::ofstream _stream;
+    uint16_t _coordX = 0;
+    uint16_t _coordY = 0;
+};
+
+// ------------------------------------------------------------------------------------------------
+
+class TArquivoPPM : public IArquivoSaida
+{
+public:
+    TArquivoPPM() = delete;
+    TArquivoPPM(
+        const std::string& caminho,
+        uint16_t largura,
+        uint16_t altura
+    )
+        : _caminho(caminho),
+          _largura(largura),
+          _altura(altura)
+    {
+        _stream.open(_caminho);
+
+        if (_stream.is_open())
+        {
+            _stream << "P3"
+                    << "\n"
+                    << std::to_string(_largura)
+                    << " "
+                    << std::to_string(altura)
+                    << "\n"
+                    << "255"
+                    << "\n";
+        }
+    }
+    ~TArquivoPPM()
+    {
+        _stream.close();
+    }
+
+    bool Aberto() const override
+    {
+        return _stream.is_open();
+    }
+    const char* Caminho() const override
+    {
+        return _caminho.c_str();
+    }
+
+    bool Anexa(const TCor& cor) override
+    {
+        const bool aberto = Aberto();
+
+        if (aberto)
+        {
+            _stream << std::to_string(cor.R()) << " "
+                    << std::to_string(cor.G()) << " "
+                    << std::to_string(cor.B()) << "\n";
+        }
+        
+        return aberto;
+    }
+
+    void Flush() override
+    {
+        _stream.flush();
+    }
+
+private:
+    std::string _caminho;
+    uint16_t _largura;
+    uint16_t _altura;
+
+    std::ofstream _stream;
+};
+
+// ------------------------------------------------------------------------------------------------
+
+class TArquivoBMP : public IArquivoSaida
+{
+public:
+    TArquivoBMP() = delete;
+    TArquivoBMP(
+        const std::string& caminho,
+        uint16_t largura,
+        uint16_t altura
+    )
+        : _caminho(caminho),
+          _largura(largura),
+          _altura(altura)
+    {
+        _imagem = new bmp::Bitmap(_largura, _altura);
+    }
+    ~TArquivoBMP()
+    {
+        delete _imagem;
+    }
+
+    bool Aberto() const override
+    {
+        return _imagem->width() > 0 && _imagem->height() > 0;
+    }
+    const char* Caminho() const override
+    {
+        return _caminho.c_str();
+    }
+
+    bool Anexa(const TCor& cor) override
+    {
+        const bool aberto = Aberto();
+
+        if (aberto)
+        {
+            _imagem->set(x, y, bmp::Pixel { cor.R(), cor.G(), cor.B() });
+
+            x++;
+            if (x == _imagem->width())
+            {
+                x = 0;
+                y++;
+            }
+        }
+        
+        return aberto;
+    }
+
+    void Flush() override
+    {
+        _imagem->save(_caminho);
+    }
+
+private:
+    std::string _caminho;
+    uint16_t _largura;
+    uint16_t _altura;
+
+    bmp::Bitmap* _imagem = nullptr;
+    std::int32_t x = 0;
+    std::int32_t y = 0;
+};
+
+// ------------------------------------------------------------------------------------------------
+
+namespace FuncoesGerais
+{
+    uint8_t Trunca(double n)
+    {
+        return static_cast<uint8_t>(floor(n));
+    }
+
+    TCor Vec2Cor(const TVetor3D& v)
+    {
+        return { Trunca(v.X()), Trunca(v.Y()), Trunca(v.Z()) };
+    }
+
+    TMatriz Vec2Mtx(const TVetor3D& v)
+    {
+        TMatriz m { 3, 1 };
+
+        m[1][1] = v.X();
+        m[2][1] = v.Y();
+        m[3][1] = v.Z();
+
+        return m;
+    }
+
+    std::unique_ptr<IArquivoSaida> FabricaArquivo(
+        EFormatoImagem formato,
+        const std::string& nomeArquivo,
+        uint16_t largura,
+        uint16_t altura
+    )
+    {
+        IArquivoSaida* arq = nullptr;
+
+        std::string _nomeArquivo = nomeArquivo;
+        _nomeArquivo += ".";
+        _nomeArquivo += Extensao(formato);
+
+        if (formato == EFormatoImagem::LOG)
+        {
+            arq = new TArquivoLOG(_nomeArquivo, largura, altura);
+        }
+        else if (formato == EFormatoImagem::PPM)
+        {
+            arq = new TArquivoPPM(_nomeArquivo, largura, altura);
+        }
+        else if (formato == EFormatoImagem::BMP)
+        {
+            arq = new TArquivoBMP(_nomeArquivo, largura, altura);
+        }
+
+        return std::unique_ptr<IArquivoSaida>(arq);
+    }
+}
 
 // ------------------------------------------------------------------------------------------------
 
@@ -592,6 +1110,41 @@ public:
     {
         std::vector<double> intersecoes;
 
+        TMatriz I { 3, 3 };
+        for (int i = 1; i <= 3; i++)
+        {
+            for (int j = 1; j <= 3; j++)
+            {
+                I[i][j] = i == j ? 1.0 : 0.0;
+            }
+        }
+
+        const TMatriz dr = FuncoesGerais::Vec2Mtx(raio.Direcao());
+        const TMatriz dc = FuncoesGerais::Vec2Mtx(_d);
+
+        const TMatriz M = I * dc * dc.Transposta();
+        const TMatriz w = FuncoesGerais::Vec2Mtx(raio.Origem() - _c);
+        const TMatriz wT = w.Transposta();
+        // r_ = M__ s_
+        // w_ = p0 - Cb
+        // 0 <= s1_ dot dc_ <= H
+        // nr_ = || ri_ || / Rc
+        // ri_ = M__ si_
+
+        const double a = TMatriz(dr.Transposta() * M * dr)[1][1];
+        const double b = TMatriz(2.0 * wT * M * dr)[1][1];
+        const double c = TMatriz(wT * M * w)[1][1] - _r * _r;
+
+        const double delta = b * b - 4.0 * a * c;
+
+        if (delta < 0.0)
+        {
+            return intersecoes;
+        }
+
+        intersecoes.push_back((-b - sqrt(delta)) / 2.0 * a);
+        intersecoes.push_back((-b + sqrt(delta)) / 2.0 * a);
+
         return intersecoes;
     }
 
@@ -660,6 +1213,14 @@ public:
     std::vector<double> Intersecoes(const TRaio3D& raio) const override
     {
         std::vector<double> intersecoes;
+
+        const double a = 0.0; // drT_ M*__ dr_
+        const double b = 0.0; // 2 wT_ M*__ dr_ - 2H drT_ dc_
+        const double c = 0.0; // wT_ M*__ w_ - 2H wT_ dc_ + H^2
+
+        // M*__ = _M__ - (H/R)^2 M__
+        // _M__ = dc_ dcT_
+        // M__ = I dc_ dcT_
 
         return intersecoes;
     }
@@ -739,315 +1300,6 @@ private:
     double _dx = 0.0;
     double _dy = 0.0;
 };
-
-// ------------------------------------------------------------------------------------------------
-
-enum class EFormatoImagem { LOG, PPM, BMP };
-
-// ------------------------------------------------------------------------------------------------
-
-std::string Extensao(EFormatoImagem formato)
-{
-    if (formato == EFormatoImagem::LOG)
-    {
-        return "log";
-    }
-
-    if (formato == EFormatoImagem::PPM)
-    {
-        return "ppm";
-    }
-
-    if (formato == EFormatoImagem::BMP)
-    {
-        return "bmp";
-    }
-
-    return "";
-}
-
-// ------------------------------------------------------------------------------------------------
-
-class IArquivoSaida
-{
-public:
-    IArquivoSaida() = default;
-    virtual ~IArquivoSaida() = default;
-
-    virtual bool Aberto() const = 0;
-    virtual const char* Caminho() const = 0;
-    virtual bool Anexa(const TCor& cor) = 0;
-    virtual void Flush() = 0;
-};
-
-// ------------------------------------------------------------------------------------------------
-
-class TArquivoLOG : public IArquivoSaida
-{
-public:
-    TArquivoLOG() = delete;
-    TArquivoLOG(
-        const std::string& caminho,
-        uint16_t largura,
-        uint16_t altura
-    )
-        : _caminho(caminho),
-          _largura(largura),
-          _altura(altura)
-    {
-        _stream.open(_caminho);
-
-        if (_stream.is_open())
-        {
-            _stream << "W = " << std::to_string(_largura)
-                    << "; "
-                    << "H = "
-                    << std::to_string(altura)
-                    << ";\n";
-        }
-    }
-    ~TArquivoLOG()
-    {
-        _stream.close();
-    }
-
-    bool Aberto() const override
-    {
-        return _stream.is_open();
-    }
-    const char* Caminho() const override
-    {
-        return _caminho.c_str();
-    }
-
-    bool Anexa(const TCor& cor) override
-    {
-        const bool aberto = Aberto();
-
-        if (aberto)
-        {
-            _stream << "X = " << std::to_string(_coordX) << "; "
-                    << "Y = " << std::to_string(_coordY) << "; "
-                    << "R = " << std::to_string(cor.R()) << "; "
-                    << "G = " << std::to_string(cor.G()) << "; "
-                    << "B = " << std::to_string(cor.B()) << ";\n";
-            
-            _coordX++;
-            if (_coordX == _largura)
-            {
-                _coordX = 0;
-                _coordY++;
-            }
-        }
-        
-        return aberto;
-    }
-
-    bool Anexa(const std::string& logMsg)
-    {
-        const bool aberto = Aberto();
-
-        if (aberto)
-        {
-            _stream << "    " << logMsg << "\n";
-        }
-        
-        return aberto;
-    }
-
-    void Flush() override
-    {
-        _stream.flush();
-    }
-
-private:
-    std::string _caminho;
-    uint16_t _largura;
-    uint16_t _altura;
-
-    std::ofstream _stream;
-    uint16_t _coordX = 0;
-    uint16_t _coordY = 0;
-};
-
-// ------------------------------------------------------------------------------------------------
-
-class TArquivoPPM : public IArquivoSaida
-{
-public:
-    TArquivoPPM() = delete;
-    TArquivoPPM(
-        const std::string& caminho,
-        uint16_t largura,
-        uint16_t altura
-    )
-        : _caminho(caminho),
-          _largura(largura),
-          _altura(altura)
-    {
-        _stream.open(_caminho);
-
-        if (_stream.is_open())
-        {
-            _stream << "P3"
-                    << "\n"
-                    << std::to_string(_largura)
-                    << " "
-                    << std::to_string(altura)
-                    << "\n"
-                    << "255"
-                    << "\n";
-        }
-    }
-    ~TArquivoPPM()
-    {
-        _stream.close();
-    }
-
-    bool Aberto() const override
-    {
-        return _stream.is_open();
-    }
-    const char* Caminho() const override
-    {
-        return _caminho.c_str();
-    }
-
-    bool Anexa(const TCor& cor) override
-    {
-        const bool aberto = Aberto();
-
-        if (aberto)
-        {
-            _stream << std::to_string(cor.R()) << " "
-                    << std::to_string(cor.G()) << " "
-                    << std::to_string(cor.B()) << "\n";
-        }
-        
-        return aberto;
-    }
-
-    void Flush() override
-    {
-        _stream.flush();
-    }
-
-private:
-    std::string _caminho;
-    uint16_t _largura;
-    uint16_t _altura;
-
-    std::ofstream _stream;
-};
-
-// ------------------------------------------------------------------------------------------------
-
-class TArquivoBMP : public IArquivoSaida
-{
-public:
-    TArquivoBMP() = delete;
-    TArquivoBMP(
-        const std::string& caminho,
-        uint16_t largura,
-        uint16_t altura
-    )
-        : _caminho(caminho),
-          _largura(largura),
-          _altura(altura)
-    {
-        _imagem = new bmp::Bitmap(_largura, _altura);
-    }
-    ~TArquivoBMP()
-    {
-        delete _imagem;
-    }
-
-    bool Aberto() const override
-    {
-        return _imagem->width() > 0 && _imagem->height() > 0;
-    }
-    const char* Caminho() const override
-    {
-        return _caminho.c_str();
-    }
-
-    bool Anexa(const TCor& cor) override
-    {
-        const bool aberto = Aberto();
-
-        if (aberto)
-        {
-            _imagem->set(x, y, bmp::Pixel { cor.R(), cor.G(), cor.B() });
-
-            x++;
-            if (x == _imagem->width())
-            {
-                x = 0;
-                y++;
-            }
-        }
-        
-        return aberto;
-    }
-
-    void Flush() override
-    {
-        _imagem->save(_caminho);
-    }
-
-private:
-    std::string _caminho;
-    uint16_t _largura;
-    uint16_t _altura;
-
-    bmp::Bitmap* _imagem = nullptr;
-    std::int32_t x = 0;
-    std::int32_t y = 0;
-};
-
-// ------------------------------------------------------------------------------------------------
-
-namespace FuncoesGerais
-{
-    uint8_t Trunca(double n)
-    {
-        return static_cast<uint8_t>(floor(n));
-    }
-
-    TCor Vec2Cor(const TVetor3D& v)
-    {
-        return { Trunca(v.X()), Trunca(v.Y()), Trunca(v.Z()) };
-    }
-
-    std::unique_ptr<IArquivoSaida> FabricaArquivo(
-        EFormatoImagem formato,
-        const std::string& nomeArquivo,
-        uint16_t largura,
-        uint16_t altura
-    )
-    {
-        IArquivoSaida* arq = nullptr;
-
-        std::string _nomeArquivo = nomeArquivo;
-        _nomeArquivo += ".";
-        _nomeArquivo += Extensao(formato);
-
-        if (formato == EFormatoImagem::LOG)
-        {
-            arq = new TArquivoLOG(_nomeArquivo, largura, altura);
-        }
-        else if (formato == EFormatoImagem::PPM)
-        {
-            arq = new TArquivoPPM(_nomeArquivo, largura, altura);
-        }
-        else if (formato == EFormatoImagem::BMP)
-        {
-            arq = new TArquivoBMP(_nomeArquivo, largura, altura);
-        }
-
-        return std::unique_ptr<IArquivoSaida>(arq);
-    }
-}
 
 // ------------------------------------------------------------------------------------------------
 
