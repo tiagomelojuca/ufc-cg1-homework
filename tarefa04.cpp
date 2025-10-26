@@ -1147,23 +1147,25 @@ public:
             return intersecoes;
         }
 
-        const double t1 = (-b - sqrt(delta)) / 2.0 * a;
-        const double t2 = (-b + sqrt(delta)) / 2.0 * a;
-        const TVetor3D s1 = raio.Ponto(t1) - _c;
-        const TVetor3D s2 = raio.Ponto(t2) - _c;
+        const double t1 = (-b - sqrt(delta)) / (2.0 * a);
+        const double t2 = (-b + sqrt(delta)) / (2.0 * a);
+        const TPonto3D p1 = raio.Ponto(t1);
+        const TPonto3D p2 = raio.Ponto(t2);
+        const TVetor3D s1 = p1 - _c;
+        const TVetor3D s2 = p2 - _c;
         const double alturaT1 = s1.Dot(dc);
         const double alturaT2 = s2.Dot(dc);
         const bool t1Valido = FuncoesGerais::EstaEm(alturaT1, 0.0, _h);
         const bool t2Valido = FuncoesGerais::EstaEm(alturaT2, 0.0, _h);
 
-        // if (t1Valido)
-        // {
-        //     intersecoes.push_back(t1);
-        // }
-        // if (t2Valido)
-        // {
-        //     intersecoes.push_back(t2);
-        // }
+        if (t1Valido)
+        {
+            intersecoes.push_back(t1);
+        }
+        if (t2Valido)
+        {
+            intersecoes.push_back(t2);
+        }
 
         return intersecoes;
     }
@@ -1817,11 +1819,11 @@ TCena3D FabricaCena()
     const TPlano planoFundo = FabricaPlanoFundo();
 
     cena.Insere(fontePontual);
-    // cena.Insere(esfera);
+    cena.Insere(esfera);
     // cena.Insere(cilindro);
     // cena.Insere(cone);
-    // cena.Insere(planoChao);
-    // cena.Insere(planoFundo);
+    cena.Insere(planoChao);
+    cena.Insere(planoFundo);
 
     TMaterial materialCilindro;
     materialCilindro.KdR(0.2);
@@ -1836,11 +1838,8 @@ TCena3D FabricaCena()
     materialCilindro.M(10.0);
 
     const TVetor3D u = { 0.0, 1.0, 0.0 };
-    // const TPonto3D pPlanoTopo = esfera.Centro() + u * 0.3 * esfera.Raio();
-    // const TPonto3D pPlanoBase = esfera.Centro() - u * 0.3 * esfera.Raio();
-
-    const TPonto3D pPlanoTopo = { 0.0, 0.0, -100.0 };
-    const TPonto3D pPlanoBase = { 0.0, 0.0, -100.0 };
+    const TPonto3D pPlanoTopo = esfera.Centro() + u * esfera.Raio();
+    const TPonto3D pPlanoBase = esfera.Centro() - u * esfera.Raio();
 
     TSuperficieCircular superficie1 { pPlanoTopo, u, 50.0 };
     superficie1.Material(materialCilindro);
@@ -1852,7 +1851,7 @@ TCena3D FabricaCena()
     // cilindro.Material(materialCilindro);
     // cena.Insere(cilindro);
 
-    TSuperficieCilindrica cilindro { pPlanoBase, 50.0, 20.0, u };
+    TCilindro cilindro { pPlanoBase, 50.0, 20.0, u };
     cilindro.Material(materialCilindro);
     cena.Insere(cilindro);
 
