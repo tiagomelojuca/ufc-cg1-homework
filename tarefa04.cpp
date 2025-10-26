@@ -878,7 +878,7 @@ public:
         _entidades.push_back(std::unique_ptr<IEntidade3D>(entidade.Copia()));
     }
 
-private:
+protected:
     IEntidade3D* EntidadeInterceptada(const TRaio3D& raio) const
     {
         double intersecaoMaisProximaObservador = std::numeric_limits<double>::max();
@@ -1205,6 +1205,51 @@ private:
 
     TVetor3D _n;
     TMatriz _M;
+};
+
+// ------------------------------------------------------------------------------------------------
+
+class TCilindro : public TEntidadeComposta
+{
+public:
+    TCilindro(const TPonto3D& pCentroBase, double raio, double altura, const TVetor3D& direcao)
+    {
+        Insere(TSuperficieCilindrica { pCentroBase, raio, altura, direcao });
+        Insere(TSuperficieCircular { pCentroBase, direcao, raio });
+        Insere(TSuperficieCircular { pCentroBase + direcao * altura, direcao, raio });
+
+        _lateral = static_cast<TSuperficieCilindrica*>(_entidades[0].get());
+        _base = static_cast<TSuperficieCircular*>(_entidades[1].get());
+        _topo = static_cast<TSuperficieCircular*>(_entidades[2].get());
+    }
+
+    void Material(const TMaterial& material)
+    {
+        _lateral->Material(material);
+        _base->Material(material);
+        _topo->Material(material);
+    }
+
+    const TPonto3D& CentroBase() const
+    {
+        return _lateral->CentroBase();
+    }
+    double Raio() const
+    {
+        return _lateral->Raio();
+    }
+    double Altura() const
+    {
+        return _lateral->Altura();
+    }
+    const TVetor3D& Direcao() const
+    {
+        return _lateral->Direcao();
+    }
+private:
+    TSuperficieCilindrica* _lateral = nullptr;
+    TSuperficieCircular* _base = nullptr;
+    TSuperficieCircular* _topo = nullptr;
 };
 
 // ------------------------------------------------------------------------------------------------
@@ -1784,7 +1829,7 @@ TCena3D FabricaCena()
     const TPlano planoFundo = FabricaPlanoFundo();
 
     cena.Insere(fontePontual);
-    cena.Insere(esfera);
+    // cena.Insere(esfera);
     // cena.Insere(cilindro);
     // cena.Insere(cone);
     cena.Insere(planoChao);
@@ -1800,10 +1845,14 @@ TCena3D FabricaCena()
     TSuperficieCircular superficie2 { baseEsfera, u, 40.0 };
     superficie2.Material(esfera.Material(TRaio3D{}));
 
-    TEntidadeComposta entidadeComposta;
-    entidadeComposta.Insere(superficie1);
-    entidadeComposta.Insere(superficie2);
-    cena.Insere(entidadeComposta);
+    TCilindro cilindro { baseEsfera, 40.0, 20.0, u };
+    cilindro.Material(esfera.Material(TRaio3D{}));
+    cena.Insere(cilindro);
+
+    // TEntidadeComposta entidadeComposta;
+    // entidadeComposta.Insere(superficie1);
+    // entidadeComposta.Insere(superficie2);
+    // cena.Insere(entidadeComposta);
 
     return cena;
 }
