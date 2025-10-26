@@ -1333,6 +1333,8 @@ public:
             intersecoes.push_back(t2);
         }
 
+        std::sort(intersecoes.begin(), intersecoes.end());
+
         return intersecoes;
     }
 
@@ -1831,7 +1833,7 @@ TCena3D FabricaCena()
     const TVetor3D u = { 0.0, 1.0, 0.0 };
     const TPonto3D pPlanoBase = esfera.Centro() + u * 0.3 * esfera.Raio();
 
-    TCone cone { { 0.0, 0.0, -100.0 }, 60.0, 80.0, u };
+    TSuperficieConica cone { { 0.0, 10.0, -100.0 }, 60.0, 80.0, u };
     cone.Material(materialCilindro);
 
     cena.Insere(cone);
