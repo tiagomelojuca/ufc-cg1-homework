@@ -1084,6 +1084,12 @@ public:
         _material = material;
     }
 
+    // nos dois metodos abaixo, as notas de aula estavam bem diferentes
+    // das fotos da lousa. inicialmente tentei implementar pelas fotos,
+    // mas ocorreram diversos problemas, entao fui pelas notas, que
+    // pareceu funcionar com alguns ajustes. depois avaliar o que errei
+    // ao fazer a versao da lousa (p.s: aparentemente era bem mais
+    // pesada, pelo uso ostensivo de matrizes)
     TVetor3D Normal(const TPonto3D& p, const TRaio3D&) const override
     {
         const TVetor3D s = p - _c;
@@ -1244,13 +1250,17 @@ public:
         _material = material;
     }
 
+    // nos dois metodos abaixo, as notas de aula estavam bem diferentes
+    // das fotos da lousa. inicialmente tentei implementar pelas fotos,
+    // mas ocorreram diversos problemas, entao fui pelas notas, que
+    // pareceu funcionar com alguns ajustes. depois avaliar o que errei
+    // ao fazer a versao da lousa (p.s: aparentemente era bem mais
+    // pesada, pelo uso ostensivo de matrizes)
     TVetor3D Normal(const TPonto3D& p, const TRaio3D& r) const override
     {
         const TVetor3D w = p - _v;
-        const TVetor3D grad = _d * _d.Dot(w) - w * _cosTetaPow2;
-        TVetor3D normal = grad.Normalizado();
 
-        return normal;
+        return TVetor3D { _d * _d.Dot(w) - w * _cosTetaPow2 }.Normalizado();
     }
     std::vector<double> Intersecoes(const TRaio3D& raio) const override
     {
