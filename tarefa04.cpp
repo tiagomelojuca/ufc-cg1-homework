@@ -1276,103 +1276,53 @@ public:
         _material = material;
     }
 
-    TVetor3D Normal(const TPonto3D& p, const TRaio3D&) const override
+    TVetor3D Normal(const TPonto3D& p, const TRaio3D& r) const override
     {
-        TVetor3D _s = _v - p;
-        _s = _s.Normalizado();
+        const double c2 = (_h * _h) / (_h * _h + _r * _r);
 
-        TMatriz s = FuncoesGerais::Vec2Mtx(_s);
-        TMatriz M = FuncoesGerais::Identidade(3) - s * s.Transposta();
+        const TVetor3D w = p - _v;
+        const TVetor3D grad = _d * _d.Dot(w) - w * c2;
+        TVetor3D normal = grad.Normalizado();
 
-        return FuncoesGerais::Mtx2Vec(M * FuncoesGerais::Vec2Mtx(_d)).Normalizado();
+        // if (normal.Dot(r.Direcao()) > 0) {
+        //     normal *= 1.0;
+        // }
+
+        return normal;
     }
     std::vector<double> Intersecoes(const TRaio3D& raio) const override
     {
         std::vector<double> intersecoes;
 
-        // tentativa 1
-        // const TMatriz dc = FuncoesGerais::Vec2Mtx(_d);
-        // const TMatriz I = FuncoesGerais::Identidade(3);
-        // const TMatriz M = I * dc * dc.Transposta();
-        // const TMatriz dr = FuncoesGerais::Vec2Mtx(raio.Direcao());
-        // const TMatriz drT = dr.Transposta();
-
-        // double hr = _h / _r;
-        // hr *= hr;
-
-        // const TMatriz Mbarra = dc * dc.Transposta();
-        // const TMatriz Masterisco = Mbarra - M * hr;
-
-        // const TMatriz w = FuncoesGerais::Vec2Mtx(raio.Origem() - _c);
-        // const TMatriz wT = w.Transposta();
-
-        // const double a = TMatriz(drT * Masterisco * dr)[1][1];
-        // const double b = TMatriz(2.0 * wT * Masterisco * dr - 2.0 * _h * drT * dc)[1][1];
-        // const double c = TMatriz(wT * Masterisco * w - 2.0 * _h * wT * dc)[1][1] + _h * _h;
-
-        // tentativa 2
-        // const TPonto3D V = _c + _d * _h;
-        // const TVetor3D v = V - raio.Origem();
-        // const double teta = 0.0;
-        // const double powcosteta = cos(teta) * cos(teta);
-        // const double a = pow(_d.Dot(raio.Direcao()), 2) - raio.Direcao().Dot(raio.Direcao()) * powcosteta;
-        // const double b = v.Dot(raio.Direcao()) * powcosteta - v.Dot(_d) * raio.Direcao().Dot(_d);
-        // const double c = pow(v.Dot(_d), 2) - v.Dot(v) * powcosteta;
-
-        // const double delta = b * b - 4.0 * a * c;
-
-        // if (delta < 0.0)
-        // {
-        //     return intersecoes;
-        // }
-
-        // const double t1 = (-b - sqrt(delta)) / 2.0 * a;
-        // const TVetor3D s1 = raio.Ponto(t1) - _c;
-        // const double s1dc = s1.Dot(_d);
-        // const bool t1Valido = s1dc >= 0.0 && s1dc <= _h;
-
-        // const double t2 = (-b + sqrt(delta)) / 2.0 * a;
-        // const TVetor3D s2 = raio.Ponto(t2) - _c;
-        // const double s2dc = s2.Dot(_d);
-        // const bool t2Valido = s2dc >= 0.0 && s2dc <= _h;
-
-        // if (t1Valido)
-        // {
-        //     intersecoes.push_back(t1);
-        // }
-        // if (t2Valido)
-        // {
-        //     intersecoes.push_back(t2);
-        // }
+        const TVetor3D& dr = raio.Direcao();
+        const TVetor3D& dc = _d;
 
         const TVetor3D v = _v - raio.Origem();
-        const double dn = raio.Direcao().Dot(_d);
-        const double dd = raio.Direcao().Dot(raio.Direcao());
-        const double vn = v.Dot(_d);
-        const double vd = v.Dot(raio.Direcao());
+        const double dn = dr.Dot(dc);
+        const double dd = dr.Dot(dr);
+        const double vn = v.Dot(dc);
+        const double vd = v.Dot(dr);
         const double vv = v.Dot(v);
 
-        const double c2 = (_h*_h) / (_h*_h + _r*_r);
-        const double a = dn*dn - dd*c2;
-        const double b = vd*c2 - vn*dn;
-        const double c = vn*vn - vv*c2;
+        const double c2 = (_h * _h) / (_h * _h + _r * _r);
+        const double a = dn * dn - dd * c2;
+        const double b = vd * c2 - vn * dn;
+        const double c = vn * vn - vv * c2;
 
-        const double delta = b * b - 4.0 * a * c;
-
-        if (delta < 0.0)
+        const double delta = b * b - a * c;
+        if (fabs(a) < 1e-12 || delta < 0.0)
         {
             return intersecoes;
         }
 
-        const double t1 = (-b - sqrt(delta)) / 2.0 * a;
-        const TVetor3D s1 = raio.Ponto(t1) - _c;
-        const double s1dc = s1.Dot(_d);
-        const bool t1Valido = s1dc >= 0.0 && s1dc <= _h;
-
-        const double t2 = (-b + sqrt(delta)) / 2.0 * a;
-        const TVetor3D s2 = raio.Ponto(t2) - _c;
-        const double s2dc = s2.Dot(_d);
-        const bool t2Valido = s2dc >= 0.0 && s2dc <= _h;
+        const double t1 = (-b - sqrt(delta)) / (a);
+        const double t2 = (-b + sqrt(delta)) / (a);
+        const TPonto3D p1 = raio.Ponto(t1);
+        const TPonto3D p2 = raio.Ponto(t2);
+        const double proj1 = dc.Dot(_v - p1);
+        const double proj2 = dc.Dot(_v - p2);
+        const bool t1Valido = FuncoesGerais::EstaEm(proj1, 0.0, _h);
+        const bool t2Valido = FuncoesGerais::EstaEm(proj2, 0.0, _h);
 
         if (t1Valido)
         {
@@ -1413,6 +1363,47 @@ private:
     TVetor3D _d;
 
     TPonto3D _v;
+};
+
+// ------------------------------------------------------------------------------------------------
+
+class TCone : public TEntidadeComposta
+{
+public:
+    TCone(const TPonto3D& pCentroBase, double raioBase, double altura, const TVetor3D& direcao)
+    {
+        Insere(TSuperficieConica { pCentroBase, raioBase, altura, direcao });
+        Insere(TSuperficieCircular { pCentroBase, direcao, raioBase });
+
+        _lateral = static_cast<TSuperficieConica*>(_entidades[0].get());
+        _base = static_cast<TSuperficieCircular*>(_entidades[1].get());
+    }
+
+    void Material(const TMaterial& material)
+    {
+        _lateral->Material(material);
+        _base->Material(material);
+    }
+
+    const TPonto3D& CentroBase() const
+    {
+        return _lateral->CentroBase();
+    }
+    double RaioBase() const
+    {
+        return _lateral->RaioBase();
+    }
+    double Altura() const
+    {
+        return _lateral->Altura();
+    }
+    const TVetor3D& Direcao() const
+    {
+        return _lateral->Direcao();
+    }
+private:
+    TSuperficieConica* _lateral = nullptr;
+    TSuperficieCircular* _base = nullptr;
 };
 
 // ------------------------------------------------------------------------------------------------
@@ -1820,7 +1811,7 @@ TCena3D FabricaCena()
 
     cena.Insere(fontePontual);
     cena.Insere(esfera);
-    cena.Insere(cilindro);
+    // cena.Insere(cilindro);
     // cena.Insere(cone);
     cena.Insere(planoChao);
     cena.Insere(planoFundo);
@@ -1838,14 +1829,12 @@ TCena3D FabricaCena()
     materialCilindro.M(10.0);
 
     const TVetor3D u = { 0.0, 1.0, 0.0 };
-    const TPonto3D pPlanoTopo = esfera.Centro() + u * esfera.Raio();
-    const TPonto3D pPlanoBase = esfera.Centro() - u * esfera.Raio();
+    const TPonto3D pPlanoBase = esfera.Centro() + u * 0.3 * esfera.Raio();
 
-    TSuperficieCircular superficie1 { pPlanoTopo, u, 50.0 };
-    superficie1.Material(materialCilindro);
+    TCone cone { { 0.0, 0.0, -100.0 }, 60.0, 80.0, u };
+    cone.Material(materialCilindro);
 
-    TSuperficieCircular superficie2 { pPlanoBase, u, 50.0 };
-    superficie2.Material(materialCilindro);
+    cena.Insere(cone);
 
     return cena;
 }
