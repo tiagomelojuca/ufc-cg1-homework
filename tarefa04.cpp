@@ -528,6 +528,14 @@ private:
 
 namespace FuncoesGerais
 {
+    bool EstaEm(double val, double min, double max, bool inicioFechado = true, bool fimFechado = true)
+    {
+        bool maiorQueMin = inicioFechado ? val >= min : val > min;
+        bool menorQueMax = fimFechado ? val <= max : val < max;
+
+        return maiorQueMin && menorQueMax;
+    }
+
     uint8_t Trunca(double n)
     {
         return static_cast<uint8_t>(floor(n));
@@ -1060,13 +1068,12 @@ public:
         const double a = d.Dot(d);
         const double b = 2.0 * (w.Dot(d));
         const double c = w.Dot(w) - Raio() * Raio();
-        const double delta = b * b - 4.0 * a * c;
 
+        const double delta = b * b - 4.0 * a * c;
         if (delta < 0.0)
         {
             return intersecoes;
         }
-
         intersecoes.push_back((-b - sqrt(delta)) / 2.0 * a);
         intersecoes.push_back((-b + sqrt(delta)) / 2.0 * a);
 
@@ -1087,13 +1094,7 @@ class TSuperficieCilindrica : public IEntidade3D
 {
 public:
     TSuperficieCilindrica(const TPonto3D& pCentroBase, double raio, double altura, const TVetor3D& direcao)
-        : _c(pCentroBase), _r(raio), _h(altura), _d(direcao.Normalizado()), _M(3, 3)
-    {
-        const TMatriz dc = FuncoesGerais::Vec2Mtx(_d);
-        const TMatriz I = FuncoesGerais::Identidade(3);
-
-        _M = I * dc * dc.Transposta();
-    }
+        : _c(pCentroBase), _r(raio), _h(altura), _d(direcao.Normalizado()) {}
 
     IEntidade3D* Copia() const override
     {
@@ -1120,59 +1121,49 @@ public:
 
     TVetor3D Normal(const TPonto3D& p, const TRaio3D&) const override
     {
-        return FuncoesGerais::Mtx2Vec(_M * FuncoesGerais::Vec2Mtx(p - _c));
+        const TVetor3D s = p - _c;
+        const TVetor3D s_ = _d * s.Dot(_d);
+
+        return TVetor3D { s - s_ }.Normalizado();
     }
     std::vector<double> Intersecoes(const TRaio3D& raio) const override
     {
         std::vector<double> intersecoes;
 
-        // const TMatriz dr = FuncoesGerais::Vec2Mtx(raio.Direcao());
+        const TVetor3D& dc = _d;
+        const TVetor3D& dr = raio.Direcao();
 
-        // const TMatriz w = FuncoesGerais::Vec2Mtx(raio.Origem() - _c);
-        // const TMatriz wT = w.Transposta();
-        // // r_ = M__ s_
-        // // w_ = p0 - Cb
-        // // 0 <= s1_ dot dc_ <= H
-        // // nr_ = || ri_ || / Rc
-        // // ri_ = M__ si_
-
-        // const double a = TMatriz(dr.Transposta() * _M * dr)[1][1];
-        // const double b = TMatriz(2.0 * wT * _M * dr)[1][1];
-        // const double c = TMatriz(wT * _M * w)[1][1] - _r * _r;
-
-        const TVetor3D s = raio.Origem() - _c;
-        const TVetor3D v = s - _d * s.Dot(_d);
-        const TVetor3D w = raio.Direcao() - _d * raio.Direcao().Dot(_d);
+        const TVetor3D aux = raio.Origem() - _c;
+        const TVetor3D v = aux - dc * aux.Dot(dc);
+        const TVetor3D w = dr - dc * dr.Dot(dc);
 
         const double a = w.Dot(w);
-        const double b = v.Dot(w);
+        const double b = 2.0 * v.Dot(w);
         const double c = v.Dot(v) - _r * _r;
 
         const double delta = b * b - 4.0 * a * c;
-
-        if (delta < 0.0)
+        if (fabs(a) < 1e-12 || delta < 0.0)
         {
             return intersecoes;
         }
 
         const double t1 = (-b - sqrt(delta)) / 2.0 * a;
-        const TVetor3D s1 = raio.Ponto(t1) - _c;
-        const double s1dc = s1.Dot(_d);
-        const bool t1Valido = s1dc >= 0.0 && s1dc <= _h;
-
         const double t2 = (-b + sqrt(delta)) / 2.0 * a;
+        const TVetor3D s1 = raio.Ponto(t1) - _c;
         const TVetor3D s2 = raio.Ponto(t2) - _c;
-        const double s2dc = s2.Dot(_d);
-        const bool t2Valido = s2dc >= 0.0 && s2dc <= _h;
+        const double alturaT1 = s1.Dot(dc);
+        const double alturaT2 = s2.Dot(dc);
+        const bool t1Valido = FuncoesGerais::EstaEm(alturaT1, 0.0, _h);
+        const bool t2Valido = FuncoesGerais::EstaEm(alturaT2, 0.0, _h);
 
-        if (t1Valido)
-        {
-            intersecoes.push_back(t1);
-        }
-        if (t2Valido)
-        {
-            intersecoes.push_back(t2);
-        }
+        // if (t1Valido)
+        // {
+        //     intersecoes.push_back(t1);
+        // }
+        // if (t2Valido)
+        // {
+        //     intersecoes.push_back(t2);
+        // }
 
         return intersecoes;
     }
@@ -1202,9 +1193,6 @@ private:
     double _r;
     double _h;
     TVetor3D _d;
-
-    TVetor3D _n;
-    TMatriz _M;
 };
 
 // ------------------------------------------------------------------------------------------------
@@ -1832,21 +1820,40 @@ TCena3D FabricaCena()
     // cena.Insere(esfera);
     // cena.Insere(cilindro);
     // cena.Insere(cone);
-    cena.Insere(planoChao);
-    cena.Insere(planoFundo);
+    // cena.Insere(planoChao);
+    // cena.Insere(planoFundo);
+
+    TMaterial materialCilindro;
+    materialCilindro.KdR(0.2);
+    materialCilindro.KdG(0.3);
+    materialCilindro.KdB(0.8);
+    materialCilindro.KeR(0.2);
+    materialCilindro.KeG(0.3);
+    materialCilindro.KeB(0.8);
+    materialCilindro.KaR(0.2);
+    materialCilindro.KaG(0.3);
+    materialCilindro.KaB(0.8);
+    materialCilindro.M(10.0);
 
     const TVetor3D u = { 0.0, 1.0, 0.0 };
-    const TPonto3D topoEsfera = esfera.Centro() + u * 0.9 * esfera.Raio();
-    const TPonto3D baseEsfera = esfera.Centro() - u * 0.9 * esfera.Raio();
+    // const TPonto3D pPlanoTopo = esfera.Centro() + u * 0.3 * esfera.Raio();
+    // const TPonto3D pPlanoBase = esfera.Centro() - u * 0.3 * esfera.Raio();
 
-    TSuperficieCircular superficie1 { topoEsfera, u, 40.0 };
-    superficie1.Material(esfera.Material(TRaio3D{}));
+    const TPonto3D pPlanoTopo = { 0.0, 0.0, -100.0 };
+    const TPonto3D pPlanoBase = { 0.0, 0.0, -100.0 };
 
-    TSuperficieCircular superficie2 { baseEsfera, u, 40.0 };
-    superficie2.Material(esfera.Material(TRaio3D{}));
+    TSuperficieCircular superficie1 { pPlanoTopo, u, 50.0 };
+    superficie1.Material(materialCilindro);
 
-    TCilindro cilindro { baseEsfera, 40.0, 20.0, u };
-    cilindro.Material(esfera.Material(TRaio3D{}));
+    TSuperficieCircular superficie2 { pPlanoBase, u, 50.0 };
+    superficie2.Material(materialCilindro);
+
+    // TCilindro cilindro { baseEsfera, 40.0, 20.0, u };
+    // cilindro.Material(materialCilindro);
+    // cena.Insere(cilindro);
+
+    TSuperficieCilindrica cilindro { pPlanoBase, 50.0, 20.0, u };
+    cilindro.Material(materialCilindro);
     cena.Insere(cilindro);
 
     // TEntidadeComposta entidadeComposta;
