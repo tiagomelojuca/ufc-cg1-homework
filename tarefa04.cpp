@@ -1691,32 +1691,32 @@ TEsfera FabricaEsfera()
 
 // ------------------------------------------------------------------------------------------------
 
-// TCilindro FabricaCilindro(const TEsfera& ref)
-// {
-//     TMaterial material;
-//     material.KdR(0.2);
-//     material.KdG(0.3);
-//     material.KdB(0.8);
-//     material.KeR(0.2);
-//     material.KeG(0.3);
-//     material.KeB(0.8);
-//     material.KaR(0.2);
-//     material.KaG(0.3);
-//     material.KaB(0.8);
-//     material.M(10.0);
+TCilindro FabricaCilindro(const TEsfera& ref)
+{
+    TMaterial material;
+    material.KdR(0.2);
+    material.KdG(0.3);
+    material.KdB(0.8);
+    material.KeR(0.2);
+    material.KeG(0.3);
+    material.KeB(0.8);
+    material.KaR(0.2);
+    material.KaG(0.3);
+    material.KaB(0.8);
+    material.M(10.0);
 
-//     const TPonto3D& cBaseCilindro = ref.Centro();
-//     const double rBaseCilindro = ref.Raio() / 3.0;
-//     const double hCilindro = 3.0 * ref.Raio();
-//     const double k = 1.0 / sqrt(3.0);
-//     const TVetor3D dCilindro { -k, k, -k };
+    const TPonto3D& cBaseCilindro = ref.Centro();
+    const double rBaseCilindro = ref.Raio() / 3.0;
+    const double hCilindro = 3.0 * ref.Raio();
+    const double k = 1.0 / sqrt(3.0);
+    const TVetor3D dCilindro { -k, k, -k };
 
-//     TCilindro cilindro { cBaseCilindro, rBaseCilindro, hCilindro, dCilindro };
-//     cilindro.Rotulo("CILINDRO_1");
-//     cilindro.Material(material);
+    TCilindro cilindro { cBaseCilindro, rBaseCilindro, hCilindro, dCilindro };
+    cilindro.Rotulo("CILINDRO_1");
+    cilindro.Material(material);
 
-//     return cilindro;
-// }
+    return cilindro;
+}
 
 // ------------------------------------------------------------------------------------------------
 
@@ -1813,14 +1813,14 @@ TCena3D FabricaCena()
 
     const TFontePontual fontePontual { { 0.0, 60.0, -30.0 }, { 0.7, 0.7, 0.7 } };
     const TEsfera esfera = FabricaEsfera();
-    // const TCilindro cilindro = FabricaCilindro(esfera);
+    const TCilindro cilindro = FabricaCilindro(esfera);
     // const TCone cone = FabricaCone(esfera, cilindro);
     const TPlano planoChao = FabricaPlanoChao(esfera);
     const TPlano planoFundo = FabricaPlanoFundo();
 
     cena.Insere(fontePontual);
     cena.Insere(esfera);
-    // cena.Insere(cilindro);
+    cena.Insere(cilindro);
     // cena.Insere(cone);
     cena.Insere(planoChao);
     cena.Insere(planoFundo);
@@ -1846,19 +1846,6 @@ TCena3D FabricaCena()
 
     TSuperficieCircular superficie2 { pPlanoBase, u, 50.0 };
     superficie2.Material(materialCilindro);
-
-    // TCilindro cilindro { baseEsfera, 40.0, 20.0, u };
-    // cilindro.Material(materialCilindro);
-    // cena.Insere(cilindro);
-
-    TCilindro cilindro { pPlanoBase, 50.0, 20.0, u };
-    cilindro.Material(materialCilindro);
-    cena.Insere(cilindro);
-
-    // TEntidadeComposta entidadeComposta;
-    // entidadeComposta.Insere(superficie1);
-    // entidadeComposta.Insere(superficie2);
-    // cena.Insere(entidadeComposta);
 
     return cena;
 }
