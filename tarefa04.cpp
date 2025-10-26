@@ -26,7 +26,7 @@
 #include <vector>
 #include <memory>
 
-#define UTILIZA_BITMAP_PLUS_PLUS
+// #define UTILIZA_BITMAP_PLUS_PLUS
 
 #ifdef UTILIZA_BITMAP_PLUS_PLUS
     #include "BitmapPlusPlus.hpp"
@@ -49,10 +49,6 @@
     }
 #endif
 
-// ------------------------------------------------------------------------------------------------
-#include "agc.hpp"
-using TMatriz = agc::matrix<double>;
-#define Transposta transpose
 // ------------------------------------------------------------------------------------------------
 
 class TVetor4D
@@ -544,37 +540,6 @@ namespace FuncoesGerais
     TCor Vec2Cor(const TVetor3D& v)
     {
         return { Trunca(v.X()), Trunca(v.Y()), Trunca(v.Z()) };
-    }
-
-    TMatriz Vec2Mtx(const TVetor3D& v)
-    {
-        TMatriz m { 3, 1 };
-
-        m[1][1] = v.X();
-        m[2][1] = v.Y();
-        m[3][1] = v.Z();
-
-        return m;
-    }
-
-    TVetor3D Mtx2Vec(const TMatriz& m)
-    {
-        return TVetor3D { m[1][1], m[2][1], m[3][1] };
-    }
-
-    TMatriz Identidade(int ordem)
-    {
-        TMatriz I { ordem, ordem };
-
-        for (int i = 1; i <= ordem; i++)
-        {
-            for (int j = 1; j <= ordem; j++)
-            {
-                I[i][j] = i == j ? 1.0 : 0.0;
-            }
-        }
-
-        return I;
     }
 
     std::unique_ptr<IArquivoSaida> FabricaArquivo(
@@ -1141,12 +1106,14 @@ public:
         const double b = 2.0 * v.Dot(w);
         const double c = v.Dot(v) - _r * _r;
 
+        // talvez fosse bom avaliar "a" como fabs(a) < 1e-12
         const double delta = b * b - 4.0 * a * c;
-        if (fabs(a) < 1e-12 || delta < 0.0)
+        if (a == 0.0 || delta < 0.0)
         {
             return intersecoes;
         }
 
+        // passar para o solver generico depois
         const double t1 = (-b - sqrt(delta)) / (2.0 * a);
         const double t2 = (-b + sqrt(delta)) / (2.0 * a);
         const TPonto3D p1 = raio.Ponto(t1);
@@ -1251,6 +1218,7 @@ public:
         : _c(pCentroBase), _r(raioBase), _h(altura), _d(direcao.Normalizado())
     {
         _v = _c + _d * _h;
+        _cosTetaPow2 = (_h * _h) / (_h * _h + _r * _r);
     }
 
     IEntidade3D* Copia() const override
@@ -1278,15 +1246,9 @@ public:
 
     TVetor3D Normal(const TPonto3D& p, const TRaio3D& r) const override
     {
-        const double c2 = (_h * _h) / (_h * _h + _r * _r);
-
         const TVetor3D w = p - _v;
-        const TVetor3D grad = _d * _d.Dot(w) - w * c2;
+        const TVetor3D grad = _d * _d.Dot(w) - w * _cosTetaPow2;
         TVetor3D normal = grad.Normalizado();
-
-        // if (normal.Dot(r.Direcao()) > 0) {
-        //     normal *= 1.0;
-        // }
 
         return normal;
     }
@@ -1304,17 +1266,21 @@ public:
         const double vd = v.Dot(dr);
         const double vv = v.Dot(v);
 
-        const double c2 = (_h * _h) / (_h * _h + _r * _r);
-        const double a = dn * dn - dd * c2;
-        const double b = vd * c2 - vn * dn;
-        const double c = vn * vn - vv * c2;
+        const double a = dn * dn - dd * _cosTetaPow2;
+        const double b = vd * _cosTetaPow2 - vn * dn;
+        const double c = vn * vn - vv * _cosTetaPow2;
 
+        // 1) ver aqui como escrever da forma tradicional, ex: 4ac,
+        //    para poder passar para o solver generico depois
+        // 2) talvez fosse bom avaliar "a" como fabs(a) < 1e-12
         const double delta = b * b - a * c;
-        if (fabs(a) < 1e-12 || delta < 0.0)
+        if (a == 0.0 || delta < 0.0)
         {
             return intersecoes;
         }
 
+        // ver aqui como escrever da forma tradicional, ex: / 2.0a
+        // para poder passar para o solver generico depois
         const double t1 = (-b - sqrt(delta)) / (a);
         const double t2 = (-b + sqrt(delta)) / (a);
         const TPonto3D p1 = raio.Ponto(t1);
@@ -1333,6 +1299,9 @@ public:
             intersecoes.push_back(t2);
         }
 
+        // nao entendi pq foi necessario ordenar, acho que ja devia vir
+        // na ordem certa, mas pelo visto resolveu, entao devia estar
+        // vindo um t maior no comeco, avaliar pq
         std::sort(intersecoes.begin(), intersecoes.end());
 
         return intersecoes;
@@ -1365,6 +1334,7 @@ private:
     TVetor3D _d;
 
     TPonto3D _v;
+    double _cosTetaPow2 = 0.0;
 };
 
 // ------------------------------------------------------------------------------------------------
@@ -1713,31 +1683,36 @@ TCilindro FabricaCilindro(const TEsfera& ref)
 
 // ------------------------------------------------------------------------------------------------
 
-// TCone FabricaCone(const TEsfera& esferaRef, const TCilindro& cilindroRef)
-// {
-//     TMaterial material;
-//     material.KdR(0.8);
-//     material.KdG(0.3);
-//     material.KdB(0.2);
-//     material.KeR(0.8);
-//     material.KeG(0.3);
-//     material.KeB(0.2);
-//     material.KaR(0.8);
-//     material.KaG(0.3);
-//     material.KaB(0.2);
-//     material.M(10.0);
+TCone FabricaCone(const TEsfera& esferaRef, const TCilindro& cilindroRef)
+{
+    TMaterial material;
+    material.KdR(0.8);
+    material.KdG(0.3);
+    material.KdB(0.2);
+    material.KeR(0.8);
+    material.KeG(0.3);
+    material.KeB(0.2);
+    material.KaR(0.8);
+    material.KaG(0.3);
+    material.KaB(0.2);
+    material.M(10.0);
 
-//     const TPonto3D& cBaseCone = cilindroRef.Direcao() * cilindroRef.Altura();
-//     const double rBaseCone = 1.5 * esferaRef.Raio();
-//     const double hCone = esferaRef.Raio() / 3.0;
-//     const TVetor3D& dCone = cilindroRef.Direcao();
+    const double hCilindro = cilindroRef.Altura();
+    const TVetor3D& dCilindro = cilindroRef.Direcao();
+    const TPonto3D& cBaseCilindro = cilindroRef.CentroBase();
+    const TPonto3D cTopoCilindro = cBaseCilindro + dCilindro * hCilindro;
 
-//     TCone cone { cBaseCone, rBaseCone, hCone, dCone };
-//     cone.Rotulo("CONE_1");
-//     cone.Material(material);
+    const TPonto3D& cBaseCone = cTopoCilindro;
+    const double rBaseCone = 1.5 * esferaRef.Raio();
+    const double hCone = esferaRef.Raio() / 3.0;
+    const TVetor3D& dCone = cilindroRef.Direcao();
 
-//     return cone;
-// }
+    TCone cone { cBaseCone, rBaseCone, hCone, dCone };
+    cone.Rotulo("CONE_1");
+    cone.Material(material);
+
+    return cone;
+}
 
 // ------------------------------------------------------------------------------------------------
 
@@ -1807,36 +1782,16 @@ TCena3D FabricaCena()
     const TFontePontual fontePontual { { 0.0, 60.0, -30.0 }, { 0.7, 0.7, 0.7 } };
     const TEsfera esfera = FabricaEsfera();
     const TCilindro cilindro = FabricaCilindro(esfera);
-    // const TCone cone = FabricaCone(esfera, cilindro);
+    const TCone cone = FabricaCone(esfera, cilindro);
     const TPlano planoChao = FabricaPlanoChao(esfera);
     const TPlano planoFundo = FabricaPlanoFundo();
 
     cena.Insere(fontePontual);
     cena.Insere(esfera);
-    // cena.Insere(cilindro);
-    // cena.Insere(cone);
+    cena.Insere(cilindro);
+    cena.Insere(cone);
     cena.Insere(planoChao);
     cena.Insere(planoFundo);
-
-    TMaterial materialCilindro;
-    materialCilindro.KdR(0.2);
-    materialCilindro.KdG(0.3);
-    materialCilindro.KdB(0.8);
-    materialCilindro.KeR(0.2);
-    materialCilindro.KeG(0.3);
-    materialCilindro.KeB(0.8);
-    materialCilindro.KaR(0.2);
-    materialCilindro.KaG(0.3);
-    materialCilindro.KaB(0.8);
-    materialCilindro.M(10.0);
-
-    const TVetor3D u = { 0.0, 1.0, 0.0 };
-    const TPonto3D pPlanoBase = esfera.Centro() + u * 0.3 * esfera.Raio();
-
-    TSuperficieConica cone { { 0.0, 10.0, -100.0 }, 60.0, 80.0, u };
-    cone.Material(materialCilindro);
-
-    cena.Insere(cone);
 
     return cena;
 }
@@ -1861,7 +1816,7 @@ std::unique_ptr<IArquivoSaida> FabricaArquivo(
 int main()
 {
     TCena3D cena = FabricaCena();
-    const std::unique_ptr<IArquivoSaida> arq = FabricaArquivo("a", EFormatoImagem::BMP, cena);
+    const std::unique_ptr<IArquivoSaida> arq = FabricaArquivo("a", EFormatoImagem::PPM, cena);
 
     const bool erro = !arq->Aberto();
     if (!erro)
