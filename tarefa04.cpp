@@ -819,12 +819,51 @@ public:
         return intersecoes;
     }
 
-private:
+protected:
     std::string _rotulo;
     TMaterial _material;
 
     TPonto3D _p;
     TVetor3D _n;
+};
+
+// ------------------------------------------------------------------------------------------------
+
+class TCirculo : public TPlano
+{
+public:
+    TCirculo() = delete;
+    TCirculo(const TPonto3D& posicao, const TVetor3D& direcao, double raio)
+        : TPlano { posicao, direcao }, _r(raio) {}
+
+    IEntidade3D* Copia() const override
+    {
+        return new TCirculo(*this);
+    }
+
+    const TPonto3D& PontoReferencia() const
+    {
+        return _p;
+    }
+
+    std::vector<double> Intersecoes(const TRaio3D& raio) const override
+    {
+        std::vector<double> intersecoes;
+
+        std::vector<double> intersecoesPlano = TPlano::Intersecoes(raio);
+        for (double intersecaoPlano : intersecoesPlano)
+        {
+            if (TVetor3D { raio.Ponto(intersecaoPlano) - _p }.Norma() <= _r)
+            {
+                intersecoes.push_back(intersecaoPlano);
+            }
+        }
+
+        return intersecoes;
+    }
+
+private:
+    double _r;
 };
 
 // ------------------------------------------------------------------------------------------------
@@ -899,10 +938,10 @@ private:
 
 // ------------------------------------------------------------------------------------------------
 
-class TCilindro : public IEntidade3D
+class TSuperficieCilindrica : public IEntidade3D
 {
 public:
-    TCilindro(const TPonto3D& pCentroBase, double raio, double altura, const TVetor3D& direcao)
+    TSuperficieCilindrica(const TPonto3D& pCentroBase, double raio, double altura, const TVetor3D& direcao)
         : _c(pCentroBase), _r(raio), _h(altura), _d(direcao.Normalizado()), _M(3, 3)
     {
         const TMatriz dc = FuncoesGerais::Vec2Mtx(_d);
@@ -913,7 +952,7 @@ public:
 
     IEntidade3D* Copia() const override
     {
-        return new TCilindro(*this);
+        return new TSuperficieCilindrica(*this);
     }
 
     std::string Rotulo() const override
@@ -942,19 +981,27 @@ public:
     {
         std::vector<double> intersecoes;
 
-        const TMatriz dr = FuncoesGerais::Vec2Mtx(raio.Direcao());
+        // const TMatriz dr = FuncoesGerais::Vec2Mtx(raio.Direcao());
 
-        const TMatriz w = FuncoesGerais::Vec2Mtx(raio.Origem() - _c);
-        const TMatriz wT = w.Transposta();
-        // r_ = M__ s_
-        // w_ = p0 - Cb
-        // 0 <= s1_ dot dc_ <= H
-        // nr_ = || ri_ || / Rc
-        // ri_ = M__ si_
+        // const TMatriz w = FuncoesGerais::Vec2Mtx(raio.Origem() - _c);
+        // const TMatriz wT = w.Transposta();
+        // // r_ = M__ s_
+        // // w_ = p0 - Cb
+        // // 0 <= s1_ dot dc_ <= H
+        // // nr_ = || ri_ || / Rc
+        // // ri_ = M__ si_
 
-        const double a = TMatriz(dr.Transposta() * _M * dr)[1][1];
-        const double b = TMatriz(2.0 * wT * _M * dr)[1][1];
-        const double c = TMatriz(wT * _M * w)[1][1] - _r * _r;
+        // const double a = TMatriz(dr.Transposta() * _M * dr)[1][1];
+        // const double b = TMatriz(2.0 * wT * _M * dr)[1][1];
+        // const double c = TMatriz(wT * _M * w)[1][1] - _r * _r;
+
+        const TVetor3D s = raio.Origem() - _c;
+        const TVetor3D v = s - _d * s.Dot(_d);
+        const TVetor3D w = raio.Direcao() - _d * raio.Direcao().Dot(_d);
+
+        const double a = w.Dot(w);
+        const double b = v.Dot(w);
+        const double c = v.Dot(v) - _r * _r;
 
         const double delta = b * b - 4.0 * a * c;
 
@@ -1017,10 +1064,141 @@ private:
 
 // ------------------------------------------------------------------------------------------------
 
-class TCone : public IEntidade3D
+class TCilindro : public IEntidade3D
 {
 public:
-    TCone(const TPonto3D& pCentroBase, double raioBase, double altura, const TVetor3D& direcao)
+    TCilindro(const TPonto3D& pCentroBase, double raio, double altura, const TVetor3D& direcao)
+        : _lateral(pCentroBase, raio, altura, direcao),
+          _base(pCentroBase, direcao, raio),
+          _topo(pCentroBase + direcao * altura, direcao, raio)
+    {
+    }
+
+    IEntidade3D* Copia() const override
+    {
+        return new TCilindro(*this);
+    }
+
+    std::string Rotulo() const override
+    {
+        return _rotulo;
+    }
+    void Rotulo(const std::string& rotulo)
+    {
+        _rotulo = rotulo;
+    }
+
+    TMaterial Material() const override
+    {
+        return _material;
+    }
+    void Material(const TMaterial& material)
+    {
+        _material = material;
+    }
+
+    TVetor3D Normal(const TPonto3D& p) const override
+    {
+        TVetor3D normal;
+
+        if (_ultima != nullptr)
+        {
+            normal = _ultima->Normal(p);
+        }
+
+        return normal;
+    }
+    std::vector<double> Intersecoes(const TRaio3D& raio) const override
+    {
+        std::vector<double> intersecoes;
+
+        const IEntidade3D* entidadeInterceptada = EntidadeInterceptada(raio);
+        if (entidadeInterceptada != nullptr)
+        {
+            intersecoes = entidadeInterceptada->Intersecoes(raio);
+        }
+
+        return intersecoes;
+    }
+
+    const TPonto3D& CentroBase() const
+    {
+        return _lateral.CentroBase();
+    }
+    double Raio() const
+    {
+        return _lateral.Raio();
+    }
+    double Altura() const
+    {
+        return _lateral.Altura();
+    }
+    const TVetor3D& Direcao() const
+    {
+        return _lateral.Direcao();
+    }
+
+private:
+    const IEntidade3D* EntidadeInterceptada(const TRaio3D& raio) const
+    {
+        const IEntidade3D* entidadeInterceptada = nullptr;
+
+        struct TIntersecoesEntidades
+        {
+            const IEntidade3D* entidade;
+            std::vector<double>* intersecoes;
+        };
+        std::vector<TIntersecoesEntidades> ies;
+
+        std::vector<double> intersecoesLateral = _lateral.Intersecoes(raio);
+        if (!intersecoesLateral.empty())
+        {
+            ies.push_back({ &_lateral, &intersecoesLateral });
+        }
+
+        std::vector<double> intersecoesBase = _base.Intersecoes(raio);
+        if (!intersecoesBase.empty())
+        {
+            ies.push_back({ &_base, &intersecoesBase });
+        }
+
+        std::vector<double> intersecoesTopo = _topo.Intersecoes(raio);
+        if (!intersecoesTopo.empty())
+        {
+            ies.push_back({ &_topo, &intersecoesTopo });
+        }
+
+        if (!ies.empty())
+        {
+            std::sort(ies.begin(), ies.end(), [](const auto& i1, const auto& i2)
+            {
+                return (*i1.intersecoes)[0] < (*i2.intersecoes)[0];
+            });
+
+            entidadeInterceptada = ies[0].entidade;
+        }
+
+        _ultima = entidadeInterceptada;
+
+        return entidadeInterceptada;
+    }
+
+    std::string _rotulo;
+    TMaterial _material;
+
+    mutable const IEntidade3D* _ultima = nullptr;
+
+    TSuperficieCilindrica _lateral;
+    TCirculo _base;
+    TCirculo _topo;
+};
+
+// ------------------------------------------------------------------------------------------------
+
+class TSuperficieConica : public IEntidade3D
+{
+public:
+    TSuperficieConica(const TPonto3D& pCentroBase, double raioBase, double altura, const TVetor3D& direcao)
         : _c(pCentroBase), _r(raioBase), _h(altura), _d(direcao.Normalizado())
     {
         _v = _c + _d * _h;
@@ -1028,7 +1206,7 @@ public:
 
     IEntidade3D* Copia() const override
     {
-        return new TCone(*this);
+        return new TSuperficieConica(*this);
     }
 
     std::string Rotulo() const override
@@ -1063,24 +1241,32 @@ public:
     {
         std::vector<double> intersecoes;
 
-        const TMatriz dc = FuncoesGerais::Vec2Mtx(_d);
-        const TMatriz I = FuncoesGerais::Identidade(3);
-        const TMatriz M = I * dc * dc.Transposta();
-        const TMatriz dr = FuncoesGerais::Vec2Mtx(raio.Direcao());
-        const TMatriz drT = dr.Transposta();
+        // const TMatriz dc = FuncoesGerais::Vec2Mtx(_d);
+        // const TMatriz I = FuncoesGerais::Identidade(3);
+        // const TMatriz M = I * dc * dc.Transposta();
+        // const TMatriz dr = FuncoesGerais::Vec2Mtx(raio.Direcao());
+        // const TMatriz drT = dr.Transposta();
 
-        double hr = _h / _r;
-        hr *= hr;
+        // double hr = _h / _r;
+        // hr *= hr;
 
-        const TMatriz Mbarra = dc * dc.Transposta();
-        const TMatriz Masterisco = Mbarra - M * hr;
+        // const TMatriz Mbarra = dc * dc.Transposta();
+        // const TMatriz Masterisco = Mbarra - M * hr;
 
-        const TMatriz w = FuncoesGerais::Vec2Mtx(raio.Origem() - _c);
-        const TMatriz wT = w.Transposta();
+        // const TMatriz w = FuncoesGerais::Vec2Mtx(raio.Origem() - _c);
+        // const TMatriz wT = w.Transposta();
 
-        const double a = TMatriz(drT * Masterisco * dr)[1][1];
-        const double b = TMatriz(2.0 * wT * Masterisco * dr - 2.0 * _h * drT * dc)[1][1];
-        const double c = TMatriz(wT * Masterisco * w - 2.0 * _h * wT * dc)[1][1] + _h * _h;
+        // const double a = TMatriz(drT * Masterisco * dr)[1][1];
+        // const double b = TMatriz(2.0 * wT * Masterisco * dr - 2.0 * _h * drT * dc)[1][1];
+        // const double c = TMatriz(wT * Masterisco * w - 2.0 * _h * wT * dc)[1][1] + _h * _h;
+
+        const TPonto3D V = _c + _d * _h;
+        const TVetor3D v = V - raio.Origem();
+        const double teta = 0.0;
+        const double powcosteta = cos(teta) * cos(teta);
+        const double a = pow(_d.Dot(raio.Direcao()), 2) - raio.Direcao().Dot(raio.Direcao()) * powcosteta;
+        const double b = v.Dot(raio.Direcao()) * powcosteta - v.Dot(_d) * raio.Direcao().Dot(_d);
+        const double c = pow(v.Dot(_d), 2) - v.Dot(v) * powcosteta;
 
         const double delta = b * b - 4.0 * a * c;
 
@@ -1142,6 +1328,129 @@ private:
 
 // ------------------------------------------------------------------------------------------------
 
+class TCone : public IEntidade3D
+{
+public:
+    TCone(const TPonto3D& pCentroBase, double raio, double altura, const TVetor3D& direcao)
+        : _lateral(pCentroBase, raio, altura, direcao),
+          _base(pCentroBase, direcao, raio)
+    {
+    }
+
+    IEntidade3D* Copia() const override
+    {
+        return new TCone(*this);
+    }
+
+    std::string Rotulo() const override
+    {
+        return _rotulo;
+    }
+    void Rotulo(const std::string& rotulo)
+    {
+        _rotulo = rotulo;
+    }
+
+    TMaterial Material() const override
+    {
+        return _material;
+    }
+    void Material(const TMaterial& material)
+    {
+        _material = material;
+    }
+
+    TVetor3D Normal(const TPonto3D& p) const override
+    {
+        TVetor3D normal;
+
+        if (_ultima != nullptr)
+        {
+            normal = _ultima->Normal(p);
+        }
+
+        return normal;
+    }
+    std::vector<double> Intersecoes(const TRaio3D& raio) const override
+    {
+        std::vector<double> intersecoes;
+
+        const IEntidade3D* entidadeInterceptada = EntidadeInterceptada(raio);
+        if (entidadeInterceptada != nullptr)
+        {
+            intersecoes = entidadeInterceptada->Intersecoes(raio);
+        }
+
+        return intersecoes;
+    }
+
+    const TPonto3D& CentroBase() const
+    {
+        return _lateral.CentroBase();
+    }
+    double RaioBase() const
+    {
+        return _lateral.RaioBase();
+    }
+    double Altura() const
+    {
+        return _lateral.Altura();
+    }
+    const TVetor3D& Direcao() const
+    {
+        return _lateral.Direcao();
+    }
+
+private:
+    const IEntidade3D* EntidadeInterceptada(const TRaio3D& raio) const
+    {
+        const IEntidade3D* entidadeInterceptada = nullptr;
+
+        struct TIntersecoesEntidades
+        {
+            const IEntidade3D* entidade;
+            std::vector<double>* intersecoes;
+        };
+        std::vector<TIntersecoesEntidades> ies;
+
+        std::vector<double> intersecoesLateral = _lateral.Intersecoes(raio);
+        if (!intersecoesLateral.empty())
+        {
+            ies.push_back({ &_lateral, &intersecoesLateral });
+        }
+
+        std::vector<double> intersecoesBase = _base.Intersecoes(raio);
+        if (!intersecoesBase.empty())
+        {
+            ies.push_back({ &_base, &intersecoesBase });
+        }
+
+        if (!ies.empty())
+        {
+            std::sort(ies.begin(), ies.end(), [](const auto& i1, const auto& i2)
+            {
+                return (*i1.intersecoes)[0] < (*i2.intersecoes)[0];
+            });
+
+            entidadeInterceptada = ies[0].entidade;
+        }
+
+        _ultima = entidadeInterceptada;
+
+        return entidadeInterceptada;
+    }
+
+    std::string _rotulo;
+    TMaterial _material;
+
+    mutable const IEntidade3D* _ultima = nullptr;
+
+    TSuperficieConica _lateral;
+    TCirculo _base;
+};
+
+// ------------------------------------------------------------------------------------------------
+
 class TJanela
 {
 public:
@@ -1199,6 +1508,38 @@ namespace FuncoesGeometricas
         const TVetor3D d = v.Normalizado();
 
         return d;
+    }
+
+    std::vector<double> IntersecoesValidas(
+        const IEntidade3D& entidade,
+        const TRaio3D& raio
+    )
+    {
+        std::vector<double> intersecoesValidas;
+
+        auto TemIntersecao = [&intersecoesValidas](double intersecao)
+        {
+            for (double intersecaoValida : intersecoesValidas)
+            {
+                if (intersecao == intersecaoValida)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        };
+
+        std::vector<double> intersecoes = entidade.Intersecoes(raio);
+        for (double intersecao : intersecoes)
+        {
+            if (intersecao >= 0.0 && !TemIntersecao(intersecao))
+            {
+                intersecoesValidas.push_back(intersecao);
+            }
+        }
+
+        return intersecoesValidas;
     }
 }
 
@@ -1299,7 +1640,7 @@ private:
 
         for (const std::unique_ptr<IEntidade3D>& entidade : _entidades)
         {
-            const std::vector<double> intersecoesValidas = IntersecoesValidas(*entidade, raio);
+            const std::vector<double> intersecoesValidas = FuncoesGeometricas::IntersecoesValidas(*entidade, raio);
             if (!intersecoesValidas.empty())
             {
                 const double intersecaoEntidadeMaisProximaObservador = intersecoesValidas[0];
@@ -1353,7 +1694,7 @@ private:
                 {
                     if (&entidade != outraEntidade.get())
                     {
-                        const std::vector<double> intersecoes = IntersecoesValidas(
+                        const std::vector<double> intersecoes = FuncoesGeometricas::IntersecoesValidas(
                             *outraEntidade, shadowRay
                         );
                         
@@ -1388,38 +1729,6 @@ private:
         c.Clamp(0.0, 255.0);
 
         return FuncoesGerais::Vec2Cor(c);
-    }
-
-    std::vector<double> IntersecoesValidas(
-        const IEntidade3D& entidade,
-        const TRaio3D& raio
-    ) const
-    {
-        std::vector<double> intersecoesValidas;
-
-        auto TemIntersecao = [&intersecoesValidas](double intersecao)
-        {
-            for (double intersecaoValida : intersecoesValidas)
-            {
-                if (intersecao == intersecaoValida)
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        };
-
-        std::vector<double> intersecoes = entidade.Intersecoes(raio);
-        for (double intersecao : intersecoes)
-        {
-            if (intersecao >= 0.0 && !TemIntersecao(intersecao))
-            {
-                intersecoesValidas.push_back(intersecao);
-            }
-        }
-
-        return intersecoesValidas;
     }
 
     TArquivoLOG* _arqLog = nullptr;
