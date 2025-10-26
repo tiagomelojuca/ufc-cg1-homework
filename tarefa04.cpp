@@ -829,16 +829,16 @@ protected:
 
 // ------------------------------------------------------------------------------------------------
 
-class TCirculo : public TPlano
+class TSuperficieCircular : public TPlano
 {
 public:
-    TCirculo() = delete;
-    TCirculo(const TPonto3D& posicao, const TVetor3D& direcao, double raio)
+    TSuperficieCircular() = delete;
+    TSuperficieCircular(const TPonto3D& posicao, const TVetor3D& direcao, double raio)
         : TPlano { posicao, direcao }, _r(raio) {}
 
     IEntidade3D* Copia() const override
     {
-        return new TCirculo(*this);
+        return new TSuperficieCircular(*this);
     }
 
     const TPonto3D& PontoReferencia() const
@@ -1189,8 +1189,8 @@ private:
     mutable const IEntidade3D* _ultima = nullptr;
 
     TSuperficieCilindrica _lateral;
-    TCirculo _base;
-    TCirculo _topo;
+    TSuperficieCircular _base;
+    TSuperficieCircular _topo;
 };
 
 // ------------------------------------------------------------------------------------------------
@@ -1446,7 +1446,7 @@ private:
     mutable const IEntidade3D* _ultima = nullptr;
 
     TSuperficieConica _lateral;
-    TCirculo _base;
+    TSuperficieCircular _base;
 };
 
 // ------------------------------------------------------------------------------------------------
