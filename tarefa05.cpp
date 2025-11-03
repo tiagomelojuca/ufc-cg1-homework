@@ -244,6 +244,15 @@ public:
         };
     }
 
+    TVetor3D Vetorial(const TVetor3D& outro) const
+    {
+        return TVetor3D{
+            _y * outro._z - _z * outro._y,
+            _z * outro._x - _x * outro._z,
+            _x * outro._y - _y * outro._x
+        };
+    }
+
     double Norma() const
     {
         return sqrt(Dot(*this));
@@ -801,6 +810,19 @@ namespace FuncoesGeometricas
         return d;
     }
 
+    TVetor3D Normal(const TPonto3D& p1, const TPonto3D& p2, const TPonto3D& p3)
+    {
+        const TVetor3D r1 = p2 - p1;
+        const TVetor3D r2 = p3 - p1;
+
+        return r1.Vetorial(r2);
+    }
+
+    double ProdutoMisto(const TVetor3D& v1, const TVetor3D& v2, const TVetor3D& v3)
+    {
+        return v1.Dot(v2.Vetorial(v3));
+    }
+
     std::vector<double> IntersecoesValidas(
         const IEntidade3D& entidade,
         const TRaio3D& raio
@@ -1037,6 +1059,67 @@ public:
 
 private:
     double _r;
+};
+
+// ------------------------------------------------------------------------------------------------
+
+class TSuperficieTriangular : public TPlano
+{
+public:
+    TSuperficieTriangular() = delete;
+    TSuperficieTriangular(const TPonto3D& p1, const TPonto3D& p2, const TPonto3D& p3)
+        : _p1(p1),
+          _p2(p2),
+          _p3(p3),
+          TPlano { p1, FuncoesGeometricas::Normal(p1, p2, p3).Normalizado() }
+    {
+        _N = FuncoesGeometricas::Normal(p1, p2, p3);
+    }
+
+    IEntidade3D* Copia() const override
+    {
+        return new TSuperficieTriangular(*this);
+    }
+
+    const TPonto3D& PontoReferencia() const
+    {
+        return _p;
+    }
+
+    std::vector<double> Intersecoes(const TRaio3D& raio) const override
+    {
+        std::vector<double> intersecoes;
+
+        std::vector<double> intersecoesPlano = TPlano::Intersecoes(raio);
+        for (double intersecaoPlano : intersecoesPlano)
+        {
+            const TPonto3D pI = raio.Ponto(intersecaoPlano);
+
+            const TVetor3D s1 = _p1 - pI;
+            const TVetor3D s2 = _p2 - pI;
+            const TVetor3D s3 = _p3 - pI;
+
+            const double normaN = _N.Norma();
+            const double c1 = FuncoesGeometricas::ProdutoMisto(_n, s3, s1) / normaN;
+            const double c2 = FuncoesGeometricas::ProdutoMisto(_n, s1, s2) / normaN;
+            const double c3 = 1.0 - c1 - c2;
+            const bool intersecaoDentro = c1 > 0.0 && c2 > 0.0 && c3 > 0.0;
+
+            if (intersecaoDentro)
+            {
+                intersecoes.push_back(intersecaoPlano);
+            }
+        }
+
+        return intersecoes;
+    }
+
+private:
+    TPonto3D _p1;
+    TPonto3D _p2;
+    TPonto3D _p3;
+
+    TVetor3D _N;
 };
 
 // ------------------------------------------------------------------------------------------------
@@ -1719,15 +1802,15 @@ TMaterial FabricaMaterialHomogeneo(const TVetor3D& k, double m)
 TPlano FabricaChao()
 {
     TMaterial material;
-    material.KdR(0.0);
-    material.KdG(0.0);
-    material.KdB(0.0);
+    material.KdR(0.2);
+    material.KdG(0.7);
+    material.KdB(0.2);
     material.KeR(0.0);
     material.KeG(0.0);
     material.KeB(0.0);
-    material.KaR(0.0);
-    material.KaG(0.0);
-    material.KaB(0.0);
+    material.KaR(0.2);
+    material.KaG(0.7);
+    material.KaB(0.2);
     material.M(1.0);
 
     TPlano planoChao { { 0.0, -150.0, 0.0 }, { 0.0, 1.0, 0.0 } };
