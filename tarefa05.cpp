@@ -1696,106 +1696,41 @@ private:
 
 // ------------------------------------------------------------------------------------------------
 
-TEsfera FabricaEsfera()
+TMaterial FabricaMaterialHomogeneo(const TVetor3D& k, double m)
 {
     TMaterial material;
-    material.KdR(0.7);
-    material.KdG(0.2);
-    material.KdB(0.2);
-    material.KeR(0.7);
-    material.KeG(0.2);
-    material.KeB(0.2);
-    material.KaR(0.7);
-    material.KaG(0.2);
-    material.KaB(0.2);
-    material.M(10.0);
 
-    TEsfera esfera { { 0.0, 0.0, -100.0 }, 40.0 };
-    esfera.Rotulo("ESFERA_1");
-    esfera.Material(material);
+    material.KdR(k.X());
+    material.KdG(k.Y());
+    material.KdB(k.Z());
+    material.KeR(k.X());
+    material.KeG(k.Y());
+    material.KeB(k.Z());
+    material.KaR(k.X());
+    material.KaG(k.Y());
+    material.KaB(k.Z());
+    material.M(m);
 
-    return esfera;
+    return material;
 }
 
 // ------------------------------------------------------------------------------------------------
 
-TCilindro FabricaCilindro(const TEsfera& ref)
+TPlano FabricaChao()
 {
     TMaterial material;
-    material.KdR(0.2);
-    material.KdG(0.3);
-    material.KdB(0.8);
-    material.KeR(0.2);
-    material.KeG(0.3);
-    material.KeB(0.8);
-    material.KaR(0.2);
-    material.KaG(0.3);
-    material.KaB(0.8);
-    material.M(10.0);
-
-    const TPonto3D& cBaseCilindro = ref.Centro();
-    const double rBaseCilindro = ref.Raio() / 3.0;
-    const double hCilindro = 3.0 * ref.Raio();
-    const double k = 1.0 / sqrt(3.0);
-    const TVetor3D dCilindro { -k, k, -k };
-
-    TCilindro cilindro { cBaseCilindro, rBaseCilindro, hCilindro, dCilindro };
-    cilindro.Rotulo("CILINDRO_1");
-    cilindro.Material(material);
-
-    return cilindro;
-}
-
-// ------------------------------------------------------------------------------------------------
-
-TCone FabricaCone(const TEsfera& esferaRef, const TCilindro& cilindroRef)
-{
-    TMaterial material;
-    material.KdR(0.8);
-    material.KdG(0.3);
-    material.KdB(0.2);
-    material.KeR(0.8);
-    material.KeG(0.3);
-    material.KeB(0.2);
-    material.KaR(0.8);
-    material.KaG(0.3);
-    material.KaB(0.2);
-    material.M(10.0);
-
-    const double hCilindro = cilindroRef.Altura();
-    const TVetor3D& dCilindro = cilindroRef.Direcao();
-    const TPonto3D& cBaseCilindro = cilindroRef.CentroBase();
-    const TPonto3D cTopoCilindro = cBaseCilindro + dCilindro * hCilindro;
-
-    const TPonto3D& cBaseCone = cTopoCilindro;
-    const double rBaseCone = 1.5 * esferaRef.Raio();
-    const double hCone = esferaRef.Raio() / 3.0;
-    const TVetor3D& dCone = cilindroRef.Direcao();
-
-    TCone cone { cBaseCone, rBaseCone, hCone, dCone };
-    cone.Rotulo("CONE_1");
-    cone.Material(material);
-
-    return cone;
-}
-
-// ------------------------------------------------------------------------------------------------
-
-TPlano FabricaPlanoChao(const TEsfera& esfera)
-{
-    TMaterial material;
-    material.KdR(0.2);
-    material.KdG(0.7);
-    material.KdB(0.2);
+    material.KdR(0.0);
+    material.KdG(0.0);
+    material.KdB(0.0);
     material.KeR(0.0);
     material.KeG(0.0);
     material.KeB(0.0);
-    material.KaR(0.2);
-    material.KaG(0.7);
-    material.KaB(0.2);
+    material.KaR(0.0);
+    material.KaG(0.0);
+    material.KaB(0.0);
     material.M(1.0);
 
-    TPlano planoChao { { 0.0, -esfera.Raio(), 0.0 }, { 0.0, 1.0, 0.0 } };
+    TPlano planoChao { { 0.0, -150.0, 0.0 }, { 0.0, 1.0, 0.0 } };
     planoChao.Rotulo("PLANO_CHAO");
     planoChao.Material(material);
 
@@ -1804,25 +1739,100 @@ TPlano FabricaPlanoChao(const TEsfera& esfera)
 
 // ------------------------------------------------------------------------------------------------
 
-TPlano FabricaPlanoFundo()
+TPlano FabricaParedeLateralDireita()
 {
-    TMaterial material;
-    material.KdR(0.3);
-    material.KdG(0.3);
-    material.KdB(0.7);
-    material.KeR(0.0);
-    material.KeG(0.0);
-    material.KeB(0.0);
-    material.KaR(0.3);
-    material.KaG(0.3);
-    material.KaB(0.7);
-    material.M(1.0);
+    TPlano planoParedeDireita { { 200.0, -150.0, 0.0 }, { -1.0, 0.0, 0.0 } };
+    planoParedeDireita.Rotulo("PLANO_PAREDE_LATERAL_DIR");
+    planoParedeDireita.Material(FabricaMaterialHomogeneo({ 0.686, 0.933, 0.933 }, 1.0));
 
-    TPlano planoFundo { { 0.0, 0.0, -200.0 }, { 0.0, 0.0, 1.0 } };
-    planoFundo.Rotulo("PLANO_FUNDO");
-    planoFundo.Material(material);
+    return planoParedeDireita;
+}
 
-    return planoFundo;
+// ------------------------------------------------------------------------------------------------
+
+TPlano FabricaParedeFrontal()
+{
+    TPlano planoParedeFrontal { { 200.0, -150.0, -400.0 }, { 0.0, 0.0, 1.0 } };
+    planoParedeFrontal.Rotulo("PLANO_PAREDE_FRONTAL");
+    planoParedeFrontal.Material(FabricaMaterialHomogeneo({ 0.686, 0.933, 0.933 }, 1.0));
+
+    return planoParedeFrontal;
+}
+
+// ------------------------------------------------------------------------------------------------
+
+TPlano FabricaParedeLateralEsquerda()
+{
+    TPlano planoParedeEsquerda { { -200.0, -150.0, 0.0 }, { 1.0, 0.0, 0.0 } };
+    planoParedeEsquerda.Rotulo("PLANO_PAREDE_LATERAL_ESQ");
+    planoParedeEsquerda.Material(FabricaMaterialHomogeneo({ 0.686, 0.933, 0.933 }, 1.0));
+
+    return planoParedeEsquerda;
+}
+
+// ------------------------------------------------------------------------------------------------
+
+TPlano FabricaTeto()
+{
+    TPlano planoTeto { { 0.0, 150.0, 0.0 }, { 0.0, -1.0, 0.0 } };
+    planoTeto.Rotulo("PLANO_TETO");
+    planoTeto.Material(FabricaMaterialHomogeneo({ 0.933, 0.933, 0.933 }, 1.0));
+
+    return planoTeto;
+}
+
+// ------------------------------------------------------------------------------------------------
+
+TCilindro FabricaCilindro()
+{
+    const TPonto3D cBaseCilindro { 0.0, -150.0, -200.0 };
+    const double rBaseCilindro = 5.0;
+    const double hCilindro = 90.0;
+    const TVetor3D dCilindro { 0.0, 1.0, 0.0 };
+
+    TCilindro cilindro { cBaseCilindro, rBaseCilindro, hCilindro, dCilindro };
+    cilindro.Rotulo("CILINDRO_1");
+    cilindro.Material(FabricaMaterialHomogeneo({ 0.824, 0.706, 0.549 }, 10.0));
+
+    return cilindro;
+}
+
+// ------------------------------------------------------------------------------------------------
+
+TCone FabricaCone()
+{
+    const TPonto3D cBaseCone { 0.0, -60.0, -200.0 };
+    const double rBaseCone = 90.0;
+    const double hCone = 150.0;
+    const TVetor3D& dCone = { 0.0, 1.0, 0.0 };
+
+    TCone cone { cBaseCone, rBaseCone, hCone, dCone };
+    cone.Rotulo("CONE_1");
+    cone.Material(FabricaMaterialHomogeneo({ 0.0, 1.0, 0.498 }, 10.0));
+
+    return cone;
+}
+
+// ------------------------------------------------------------------------------------------------
+
+// FabricaCubo
+
+// ------------------------------------------------------------------------------------------------
+
+TEsfera FabricaEsfera()
+{
+    TEsfera esfera { { 0.0, 95.0, -200.0 }, 5.0 };
+    esfera.Rotulo("ESFERA_1");
+    esfera.Material(FabricaMaterialHomogeneo({ 0.854, 0.647, 0.125 }, 10.0));
+
+    return esfera;
+}
+
+// ------------------------------------------------------------------------------------------------
+
+TFontePontual FabricaFontePontual()
+{
+    return { { -100.0, 140.0, -20.0 }, { 0.7, 0.7, 0.7 } };
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -1844,19 +1854,16 @@ TCena3D FabricaCena()
     cena.IambG(0.3);
     cena.IambB(0.3);
 
-    const TFontePontual fontePontual { { 0.0, 60.0, -30.0 }, { 0.7, 0.7, 0.7 } };
-    const TEsfera esfera = FabricaEsfera();
-    const TCilindro cilindro = FabricaCilindro(esfera);
-    const TCone cone = FabricaCone(esfera, cilindro);
-    const TPlano planoChao = FabricaPlanoChao(esfera);
-    const TPlano planoFundo = FabricaPlanoFundo();
-
-    cena.Insere(fontePontual);
-    cena.Insere(esfera);
-    cena.Insere(cilindro);
-    cena.Insere(cone);
-    cena.Insere(planoChao);
-    cena.Insere(planoFundo);
+    cena.Insere(FabricaChao());
+    cena.Insere(FabricaParedeLateralDireita());
+    cena.Insere(FabricaParedeFrontal());
+    cena.Insere(FabricaParedeLateralEsquerda());
+    cena.Insere(FabricaTeto());
+    cena.Insere(FabricaCilindro());
+    cena.Insere(FabricaCone());
+    // cena.Insere(FabricaCubo());
+    cena.Insere(FabricaEsfera());
+    cena.Insere(FabricaFontePontual());
 
     return cena;
 }
