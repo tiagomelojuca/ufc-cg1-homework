@@ -1136,8 +1136,18 @@ public:
     {
         Insere(TSuperficieTriangular { p1, p2, p3 });
         Insere(TSuperficieTriangular { p1, p3, p4 });
-        _t1 = static_cast<TSuperficieTriangular*>(_entidades[0].get());
-        _t2 = static_cast<TSuperficieTriangular*>(_entidades[1].get());
+
+        AtualizaReferencias();
+    }
+
+    TSuperficieRetangular(const TSuperficieRetangular& outra) : TEntidadeComposta(outra)
+    {
+        AtualizaReferencias();
+    }
+
+    IEntidade3D* Copia() const override
+    {
+        return new TSuperficieRetangular(*this);
     }
 
     void Material(const TMaterial& material)
@@ -1147,8 +1157,90 @@ public:
     }
 
 private:
+    void AtualizaReferencias()
+    {
+        _t1 = static_cast<TSuperficieTriangular*>(_entidades[0].get());
+        _t2 = static_cast<TSuperficieTriangular*>(_entidades[1].get());
+    }
+
     TSuperficieTriangular* _t1 = nullptr;
     TSuperficieTriangular* _t2 = nullptr;
+};
+
+// ------------------------------------------------------------------------------------------------
+
+class TCubo : public TEntidadeComposta
+{
+public:
+    TCubo(const TPonto3D& pCentro, double aresta) : _a(aresta), _sa(0.5 * aresta)
+    {
+        const TPonto3D pFaceInf1 { pCentro.X() - _sa, pCentro.Y(), pCentro.Z() + _sa };
+        const TPonto3D pFaceInf2 { pCentro.X() + _sa, pCentro.Y(), pCentro.Z() + _sa };
+        const TPonto3D pFaceInf3 { pCentro.X() + _sa, pCentro.Y(), pCentro.Z() - _sa };
+        const TPonto3D pFaceInf4 { pCentro.X() - _sa, pCentro.Y(), pCentro.Z() - _sa };
+        
+        const TPonto3D pFaceSup1 { pFaceInf1.X(), pFaceInf1.Y() + _a, pFaceInf1.Z() };
+        const TPonto3D pFaceSup2 { pFaceInf2.X(), pFaceInf2.Y() + _a, pFaceInf2.Z() };
+        const TPonto3D pFaceSup3 { pFaceInf3.X(), pFaceInf3.Y() + _a, pFaceInf3.Z() };
+        const TPonto3D pFaceSup4 { pFaceInf4.X(), pFaceInf4.Y() + _a, pFaceInf4.Z() };
+
+        const TSuperficieRetangular faceInferior { pFaceInf1, pFaceInf2, pFaceInf3, pFaceInf4 };
+        const TSuperficieRetangular faceSuperior { pFaceSup1, pFaceSup2, pFaceSup3, pFaceSup4 };
+        const TSuperficieRetangular faceLateralEsquerda { pFaceInf1, pFaceSup1, pFaceSup4, pFaceInf4 };
+        const TSuperficieRetangular faceLateralDireita { pFaceInf2, pFaceInf3, pFaceSup3, pFaceSup2 };
+        const TSuperficieRetangular faceTraseira { pFaceInf3, pFaceInf4, pFaceSup4, pFaceSup3 };
+        const TSuperficieRetangular faceFrontal { pFaceInf1, pFaceInf2, pFaceSup2, pFaceSup1 };
+
+        Insere(faceInferior);
+        Insere(faceSuperior);
+        Insere(faceLateralEsquerda);
+        Insere(faceLateralDireita);
+        Insere(faceTraseira);
+        Insere(faceFrontal);
+
+        AtualizaReferencias();
+    }
+
+    TCubo(const TCubo& outro) : TEntidadeComposta(outro)
+    {
+        AtualizaReferencias();
+    }
+
+    IEntidade3D* Copia() const override
+    {
+        return new TCubo(*this);
+    }
+
+    void Material(const TMaterial& material)
+    {
+        _fInferior->Material(material);
+        _fSuperior->Material(material);
+        _fLateralEsq->Material(material);
+        _fLateralDir->Material(material);
+        _fTraseira->Material(material);
+        _fFrontal->Material(material);
+    }
+
+private:
+    void AtualizaReferencias()
+    {
+        _fInferior = static_cast<TSuperficieRetangular*>(_entidades[0].get());
+        _fSuperior = static_cast<TSuperficieRetangular*>(_entidades[1].get());
+        _fLateralEsq = static_cast<TSuperficieRetangular*>(_entidades[2].get());
+        _fLateralDir = static_cast<TSuperficieRetangular*>(_entidades[3].get());
+        _fTraseira = static_cast<TSuperficieRetangular*>(_entidades[4].get());
+        _fFrontal = static_cast<TSuperficieRetangular*>(_entidades[5].get());
+    }
+
+    double _a = 0.0;
+    double _sa = 0.0;
+
+    TSuperficieRetangular* _fInferior = nullptr;
+    TSuperficieRetangular* _fSuperior = nullptr;
+    TSuperficieRetangular* _fLateralEsq = nullptr;
+    TSuperficieRetangular* _fLateralDir = nullptr;
+    TSuperficieRetangular* _fTraseira = nullptr;
+    TSuperficieRetangular* _fFrontal = nullptr;
 };
 
 // ------------------------------------------------------------------------------------------------
@@ -1927,11 +2019,14 @@ TCone FabricaCone()
 
 // ------------------------------------------------------------------------------------------------
 
-// FabricaCubo
-// >> Aresta do cubo: a = 40cm
-// >> Centro da base do cubo: C_c = (0cm, -150cm, -165cm)
-// >> As arestas da base sao paralelas aos eixos x e z do sistema de coordenadas
-// >> Kd = Ke = Ka = (1., 0.078., 0.576)
+TCubo FabricaCubo()
+{
+    TCubo cubo { { 0.0, -150.0, -165.0 }, 40.0 };
+    cubo.Rotulo("CUBO_1");
+    cubo.Material(FabricaMaterialHomogeneo({ 1.0, 0.078, 0.576 }, 10.0));
+
+    return cubo;
+}
 
 // ------------------------------------------------------------------------------------------------
 
@@ -1977,7 +2072,7 @@ TCena3D FabricaCena()
     cena.Insere(FabricaTeto());
     cena.Insere(FabricaCilindro());
     cena.Insere(FabricaCone());
-    // cena.Insere(FabricaCubo());
+    cena.Insere(FabricaCubo());
     cena.Insere(FabricaEsfera());
     cena.Insere(FabricaFontePontual());
 
