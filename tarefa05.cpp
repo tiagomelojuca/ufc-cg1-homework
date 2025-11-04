@@ -1124,6 +1124,35 @@ private:
 
 // ------------------------------------------------------------------------------------------------
 
+class TSuperficieRetangular : public TEntidadeComposta
+{
+public:
+    TSuperficieRetangular(
+        const TPonto3D& p1,
+        const TPonto3D& p2,
+        const TPonto3D& p3,
+        const TPonto3D& p4
+    )
+    {
+        Insere(TSuperficieTriangular { p1, p2, p3 });
+        Insere(TSuperficieTriangular { p1, p3, p4 });
+        _t1 = static_cast<TSuperficieTriangular*>(_entidades[0].get());
+        _t2 = static_cast<TSuperficieTriangular*>(_entidades[1].get());
+    }
+
+    void Material(const TMaterial& material)
+    {
+        _t1->Material(material);
+        _t2->Material(material);
+    }
+
+private:
+    TSuperficieTriangular* _t1 = nullptr;
+    TSuperficieTriangular* _t2 = nullptr;
+};
+
+// ------------------------------------------------------------------------------------------------
+
 class TEsfera : public IEntidade3D
 {
 public:
@@ -1899,6 +1928,10 @@ TCone FabricaCone()
 // ------------------------------------------------------------------------------------------------
 
 // FabricaCubo
+// >> Aresta do cubo: a = 40cm
+// >> Centro da base do cubo: C_c = (0cm, -150cm, -165cm)
+// >> As arestas da base sao paralelas aos eixos x e z do sistema de coordenadas
+// >> Kd = Ke = Ka = (1., 0.078., 0.576)
 
 // ------------------------------------------------------------------------------------------------
 
