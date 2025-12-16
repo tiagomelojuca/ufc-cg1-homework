@@ -80,6 +80,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <utility>
 
 #define UTILIZA_BITMAP_PLUS_PLUS
 
@@ -605,6 +606,10 @@ namespace FuncoesGerais
     {
         return { Trunca(v.X()), Trunca(v.Y()), Trunca(v.Z()) };
     }
+    TVetor3D Cor2Vec(const TCor& c)
+    {
+        return { c.R() / 255.0, c.G() / 255.0, c.B() / 255.0 };
+    }
 
     std::unique_ptr<IArquivoSaida> FabricaArquivo(
         EFormatoImagem formato,
@@ -638,10 +643,98 @@ namespace FuncoesGerais
 
 // ------------------------------------------------------------------------------------------------
 
+class TTextura
+{
+public:
+    TTextura() = default;
+
+    TCor Pixel(uint16_t x, uint16_t y) const
+    {
+        return TCor(0, 0, 0);
+    }
+
+    uint16_t Largura() const
+    {
+        return _w;
+    }
+    uint16_t Altura() const
+    {
+        return _h;
+    }
+
+    double K() const
+    {
+        return _k;
+    }
+    void K(double k)
+    {
+        _k = k;
+    }
+
+private:
+    uint16_t _w = 10u;
+    uint16_t _h = 10u;
+
+    double _k = 1.0;
+};
+
+// ------------------------------------------------------------------------------------------------
+
 class TMaterial
 {
 public:
     TMaterial() = default;
+
+    TMaterial(const TMaterial& outro)
+    {
+        CopiaDadosPrimitivos(outro);
+
+        if (outro._tex != nullptr)
+        {
+            _tex = new TTextura(*outro._tex);
+        }
+    }
+
+    TMaterial(TMaterial&& outro)
+    {
+        CopiaDadosPrimitivos(outro);
+
+        _tex = outro._tex;
+        outro._tex = nullptr;
+    }
+
+    TMaterial& operator=(const TMaterial& outro)
+    {
+        if (&outro != this)
+        {
+            CopiaDadosPrimitivos(outro);
+
+            if (outro._tex != nullptr)
+            {
+                _tex = new TTextura(*outro._tex);
+            }
+        }
+
+        return *this;
+    }
+
+    TMaterial& operator=(TMaterial&& outro)
+    {
+        if (&outro != this)
+        {
+            CopiaDadosPrimitivos(outro);
+
+            _tex = outro._tex;
+            outro._tex = nullptr;
+        }
+
+        return *this;
+    }
+
+    virtual ~TMaterial()
+    {
+        delete _tex;
+    }
 
     double M() const
     {
@@ -652,6 +745,10 @@ public:
         _m = m;
     }
 
+    double KdR(double u, double v) const
+    {
+        return _tex != nullptr ? KdTex(u, v).X() : _kdR;
+    }
     double KdR() const
     {
         return _kdR;
@@ -660,6 +757,10 @@ public:
     {
         _kdR = r;
     }
+    double KdG(double u, double v) const
+    {
+        return _tex != nullptr ? KdTex(u, v).Y() : _kdG;
+    }
     double KdG() const
     {
         return _kdG;
@@ -667,6 +768,10 @@ public:
     void KdG(double g)
     {
         _kdG = g;
+    }
+    double KdB(double u, double v) const
+    {
+        return _tex != nullptr ? KdTex(u, v).Z() : _kdB;
     }
     double KdB() const
     {
@@ -727,7 +832,46 @@ public:
         _kaB = b;
     }
 
+    const TTextura* Textura() const
+    {
+        return _tex;
+    }
+    void CarregaTextura(const std::string& caminho)
+    {
+        _tex = new TTextura;
+    }
+
 private:
+    void CopiaDadosPrimitivos(const TMaterial& outro)
+    {
+        _m = outro._m;
+
+        _kdR = outro._kdR;
+        _kdG = outro._kdG;
+        _kdB = outro._kdB;
+
+        _keR = outro._keR;
+        _keG = outro._keG;
+        _keB = outro._keB;
+
+        _kaR = outro._kaR;
+        _kaG = outro._kaG;
+        _kaB = outro._kaB;
+    }
+
+    TVetor3D KdTex(double u, double v) const
+    {
+        if (_tex != nullptr)
+        {
+            auto x = static_cast<uint16_t>(u * (_tex->Largura() - 1));
+            auto y = static_cast<uint16_t>((1.0 - v) * (_tex->Altura() - 1));
+
+            return FuncoesGerais::Cor2Vec(_tex->Pixel(x, y));
+        }
+
+        return { 0.0, 0.0, 0.0 };
+    }
+
     double _m = 0.0;
 
     double _kdR = 0.0;
@@ -741,6 +885,8 @@ private:
     double _kaR = 0.0;
     double _kaG = 0.0;
     double _kaB = 0.0;
+
+    TTextura* _tex = nullptr;
 };
 
 // ------------------------------------------------------------------------------------------------
@@ -793,6 +939,7 @@ public:
     virtual IEntidade3D* Copia() const = 0;
     virtual std::string Rotulo() const = 0;
     virtual TMaterial Material(const TRaio3D& raio) const = 0;
+    virtual std::pair<double, double> CoordenadasUV(const TPonto3D& p) const = 0;
 
     virtual TVetor3D Normal(const TPonto3D& p, const TRaio3D& raio) const = 0;
     virtual std::vector<double> Intersecoes(const TRaio3D& raio) const = 0;
@@ -898,6 +1045,11 @@ public:
         return material;
     }
 
+    std::pair<double, double> CoordenadasUV(const TPonto3D& p) const override
+    {
+        return std::pair<double, double>(0.0, 0.0);
+    }
+
     TVetor3D Normal(const TPonto3D& p, const TRaio3D& raio) const override
     {
         TVetor3D normal;
@@ -985,6 +1137,23 @@ public:
     void Material(const TMaterial& material)
     {
         _material = material;
+    }
+
+    std::pair<double, double> CoordenadasUV(const TPonto3D& p) const override
+    {
+        double u = 0.0;
+        double v = 0.0;
+
+        if (const TTextura* tex = _material.Textura())
+        {
+            u = p.X() / tex->K();
+            u = u - floor(u);
+
+            v = p.Z() / tex->K();
+            v = v - floor(v);
+        }
+
+        return std::pair<double, double>(u, v);
     }
 
     const TPonto3D& PontoReferencia() const
@@ -1274,6 +1443,11 @@ public:
         _material = material;
     }
 
+    std::pair<double, double> CoordenadasUV(const TPonto3D& p) const override
+    {
+        return std::pair<double, double>(0.0, 0.0);
+    }
+
     const TPonto3D& Centro() const { return _centro; }
     double Raio() const { return _raio; }
 
@@ -1341,6 +1515,11 @@ public:
     void Material(const TMaterial& material)
     {
         _material = material;
+    }
+
+    std::pair<double, double> CoordenadasUV(const TPonto3D& p) const override
+    {
+        return std::pair<double, double>(0.0, 0.0);
     }
 
     // nos dois metodos abaixo, as notas de aula estavam bem diferentes
@@ -1507,6 +1686,11 @@ public:
     void Material(const TMaterial& material)
     {
         _material = material;
+    }
+
+    std::pair<double, double> CoordenadasUV(const TPonto3D& p) const override
+    {
+        return std::pair<double, double>(0.0, 0.0);
     }
 
     // nos dois metodos abaixo, as notas de aula estavam bem diferentes
@@ -1817,18 +2001,22 @@ private:
 
     TCor Cor(const IEntidade3D& entidade, const TRaio3D& raio, double ti) const
     {
-        const TVetor3D iAmb { IambR(), IambG(), IambB() };
+        const TPonto3D pi = raio.Ponto(ti);
+        const std::pair<double, double> uv = entidade.CoordenadasUV(pi);
 
         const TMaterial& material = entidade.Material(raio);
-        const TPonto3D kd { material.KdR(), material.KdG(), material.KdB() };
+        const double kdR = material.KdR(uv.first, uv.second);
+        const double kdG = material.KdG(uv.first, uv.second);
+        const double kdB = material.KdB(uv.first, uv.second);
+        const TPonto3D kd { kdR, kdG, kdB };
         const TPonto3D ke { material.KeR(), material.KeG(), material.KeB() };
         const TPonto3D ka { material.KaR(), material.KaG(), material.KaB() };
 
-        const TPonto3D pi = raio.Ponto(ti);
+        const TVetor3D iAmb { IambR(), IambG(), IambB() };
+        const auto ia = iAmb.Arroba(ka);
+
         const TVetor3D n = entidade.Normal(pi, raio);
         const TVetor3D v = raio.Direcao() * -1.0;
-
-        const auto ia = iAmb.Arroba(ka);
 
         TVetor3D i = ia;
         for (const std::unique_ptr<IFonteLuminosa>& fonte : _fontes)
@@ -1933,6 +2121,8 @@ TPlano FabricaChao()
     material.KaG(0.7);
     material.KaB(0.2);
     material.M(1.0);
+
+    material.CarregaTextura("");
 
     TPlano planoChao { { 0.0, -150.0, 0.0 }, { 0.0, 1.0, 0.0 } };
     planoChao.Rotulo("PLANO_CHAO");
