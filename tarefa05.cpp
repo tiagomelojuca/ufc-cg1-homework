@@ -82,28 +82,151 @@
 #include <memory>
 #include <utility>
 
-#define UTILIZA_BITMAP_PLUS_PLUS
+#include "BitmapPlusPlus.hpp"
 
-#ifdef UTILIZA_BITMAP_PLUS_PLUS
-    #include "BitmapPlusPlus.hpp"
-#else
-    // Fiz a exportacao em bitmap so pra ajudar nas minhas depuracoes,
-    // nao vou mandar junto. Se nao tem a biblioteca, usa essa classe
-    // dummy que implementa a interface necessaria com stubs, so pro
-    // compilador nao reclamar, dai TArquivoBMP nao faz nada nesse caso
-    namespace bmp
+// ------------------------------------------------------------------------------------------------
+static bool bp = false;
+// ------------------------------------------------------------------------------------------------
+
+template <typename T, typename S>
+class TMatriz
+{
+public:
+    class TLinha // Smart Handle
     {
-        struct Pixel { std::uint8_t _1; std::uint8_t _2; std::uint8_t _3; };
-        struct Bitmap
+    public:
+        TLinha(T* ptrLinha) : _ptr(ptrLinha) {}
+
+        T& operator[](S coluna)
         {
-            Bitmap(std::int32_t, std::int32_t) {}
-            std::int32_t width() const { return 0; };
-            std::int32_t height() const { return 0; };
-            void set(const std::int32_t, const std::int32_t, const Pixel) {};
-            void save(const std::string&) {}
-        };
+            return _ptr[coluna - 1];
+        }
+
+    private:
+        T* _ptr = nullptr;
+    };
+
+    TMatriz(S linhas, S colunas)
+    {
+        _linhas = linhas;
+        _colunas = colunas;
+        AlocaMem(_linhas, _colunas);
     }
-#endif
+
+    TMatriz(const TMatriz& outra)
+    {
+        _linhas = outra._linhas;
+        _colunas = outra._colunas;
+        AlocaMem(_linhas, _colunas);
+
+        for (S linha = 0; linha < _linhas; linha++)
+        {
+            for (S coluna = 0; coluna < _colunas; coluna++)
+            {
+                _matriz[linha][coluna] = outra._matriz[linha][coluna];
+            }
+        }
+    }
+
+    TMatriz(TMatriz&& outra)
+    {
+        _linhas = outra._linhas;
+        outra._linhas = 0;
+
+        _colunas = outra._colunas;
+        outra._colunas = 0;
+
+        _matriz = outra._matriz;
+        outra._matriz = nullptr;
+    }
+
+    TMatriz& operator=(const TMatriz& outra)
+    {
+        if (&outra != this)
+        {
+            _linhas = outra._linhas;
+            _colunas = outra._colunas;
+            AlocaMem(_linhas, _colunas);
+
+            for (S linha = 0; linha < _linhas; linha++)
+            {
+                for (S coluna = 0; coluna < _colunas; coluna++)
+                {
+                    _matriz[linha][coluna] = outra._matriz[linha][coluna];
+                }
+            }
+        }
+
+        return *this;
+    }
+
+    TMatriz& operator=(TMatriz&& outra)
+    {
+        if (&outra != this)
+        {
+            _linhas = outra._linhas;
+            outra._linhas = 0;
+
+            _colunas = outra._colunas;
+            outra._colunas = 0;
+
+            _matriz = outra._matriz;
+            outra._matriz = nullptr;
+        }
+
+        return *this;
+    }
+
+    ~TMatriz()
+    {
+        for (S linha = 0; linha < _linhas; linha++)
+        {
+            delete[] _matriz[linha];
+        }
+
+        delete[] _matriz;
+    }
+
+    void Inicializa(const T& valorPadrao)
+    {
+        for (S linha = 0; linha < _linhas; linha++)
+        {
+            for (S coluna = 0; coluna < _colunas; coluna++)
+            {
+                _matriz[linha][coluna] = valorPadrao;
+            }
+        }
+    }
+
+    TLinha operator[](S linha)
+    {
+        return TLinha(_matriz[linha - 1]);
+    }
+
+    S NumeroLinhas() const
+    {
+        return _linhas;
+    }
+    S NumeroColunas() const
+    {
+        return _colunas;
+    }
+
+protected:
+    void AlocaMem(S linhas, S colunas)
+    {
+        _matriz = new T*[linhas];
+        for (S linha = 0; linha < linhas; linha++)
+        {
+            _matriz[linha] = new T[colunas];
+        }
+    }
+
+    S _linhas;
+    S _colunas;
+
+    T** _matriz;
+};
 
 // ------------------------------------------------------------------------------------------------
 
@@ -643,23 +766,92 @@ namespace FuncoesGerais
 
 // ------------------------------------------------------------------------------------------------
 
+using TImagem = TMatriz<TCor, uint16_t>;
+
+// ------------------------------------------------------------------------------------------------
+
 class TTextura
 {
 public:
-    TTextura() = default;
+    TTextura()
+    {
+        _pixels = new TImagem(0, 0);
+    }
+
+    TTextura(const TTextura& outra)
+    {
+        _k = outra._k;
+        _pixels = new TImagem(*outra._pixels);
+    }
+
+    TTextura(TTextura&& outra)
+    {
+        _k = outra._k;
+        _pixels = outra._pixels;
+        outra._pixels = nullptr;
+    }
+
+    TTextura& operator=(const TTextura& outra)
+    {
+        if (&outra != this)
+        {
+            _k = outra._k;
+            _pixels = new TImagem(*outra._pixels);
+        }
+
+        return *this;
+    }
+
+    TTextura& operator=(TTextura& outra)
+    {
+        if (&outra != this)
+        {
+            _k = outra._k;
+            _pixels = outra._pixels;
+            outra._pixels = nullptr;
+        }
+
+        return *this;
+    }
+
+    virtual ~TTextura()
+    {
+        delete _pixels;
+    }
+
+    void Carrega(const std::string& caminho)
+    {
+        bmp::Bitmap img;
+        img.load(caminho);
+
+        const uint16_t w = static_cast<uint16_t>(img.width());
+        const uint16_t h = static_cast<uint16_t>(img.height());
+
+        delete _pixels;
+        _pixels = new TImagem(h, w);
+
+        for (std::size_t x = 0; x < w; x++)
+        {
+            for (std::size_t y = 0; y < h; y++)
+            {
+                const bmp::Pixel& pixel = img.get(x, y);
+                (*_pixels)[y + 1][x + 1] = { pixel.r, pixel.g, pixel.b };
+            }
+        }
+    }
 
     TCor Pixel(uint16_t x, uint16_t y) const
     {
-        return TCor(0, 0, 0);
+        return (*_pixels)[y + 1][x + 1];
     }
 
     uint16_t Largura() const
     {
-        return _w;
+        return _pixels->NumeroColunas();
     }
     uint16_t Altura() const
     {
-        return _h;
+        return _pixels->NumeroLinhas();
     }
 
     double K() const
@@ -672,10 +864,8 @@ public:
     }
 
 private:
-    uint16_t _w = 10u;
-    uint16_t _h = 10u;
-
     double _k = 1.0;
+    TImagem* _pixels = nullptr;
 };
 
 // ------------------------------------------------------------------------------------------------
@@ -836,9 +1026,14 @@ public:
     {
         return _tex;
     }
+    TTextura* Textura()
+    {
+        return _tex;
+    }
     void CarregaTextura(const std::string& caminho)
     {
         _tex = new TTextura;
+        _tex->Carrega(caminho);
     }
 
 private:
@@ -2000,7 +2195,7 @@ private:
     }
 
     TCor Cor(const IEntidade3D& entidade, const TRaio3D& raio, double ti) const
-    {
+    {   
         const TPonto3D pi = raio.Ponto(ti);
         const std::pair<double, double> uv = entidade.CoordenadasUV(pi);
 
@@ -2111,18 +2306,18 @@ TMaterial FabricaMaterialHomogeneo(const TVetor3D& k, double m)
 TPlano FabricaChao()
 {
     TMaterial material;
-    material.KdR(0.2);
-    material.KdG(0.7);
-    material.KdB(0.2);
+    material.KdR(0.0);
+    material.KdG(0.0);
+    material.KdB(0.0);
     material.KeR(0.0);
     material.KeG(0.0);
     material.KeB(0.0);
-    material.KaR(0.2);
-    material.KaG(0.7);
-    material.KaB(0.2);
+    material.KaR(0.0);
+    material.KaG(0.0);
+    material.KaB(0.0);
     material.M(1.0);
-
-    material.CarregaTextura("");
+    material.CarregaTextura("tex.bmp");
+    material.Textura()->K(30.0);
 
     TPlano planoChao { { 0.0, -150.0, 0.0 }, { 0.0, 1.0, 0.0 } };
     planoChao.Rotulo("PLANO_CHAO");
