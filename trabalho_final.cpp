@@ -461,7 +461,19 @@ std::string Extensao(EFormatoImagem formato)
 
 // ------------------------------------------------------------------------------------------------
 
-class IArquivoSaida
+class IDispositivoSaida
+{
+public:
+    IDispositivoSaida() = default;
+    virtual ~IDispositivoSaida() = default;
+
+    virtual bool Anexa(const TCor& cor) = 0;
+    virtual void Flush() = 0;
+};
+
+// ------------------------------------------------------------------------------------------------
+
+class IArquivoSaida : public IDispositivoSaida
 {
 public:
     IArquivoSaida() = default;
@@ -469,8 +481,6 @@ public:
 
     virtual bool Aberto() const = 0;
     virtual const char* Caminho() const = 0;
-    virtual bool Anexa(const TCor& cor) = 0;
-    virtual void Flush() = 0;
 };
 
 // ------------------------------------------------------------------------------------------------
@@ -694,6 +704,53 @@ private:
     uint16_t _altura;
 
     bmp::Bitmap* _imagem = nullptr;
+    std::int32_t x = 0;
+    std::int32_t y = 0;
+};
+
+// ------------------------------------------------------------------------------------------------
+
+class TWindowViewport : public IDispositivoSaida
+{
+public:
+    TWindowViewport() = delete;
+    TWindowViewport(
+        HDC hdc,
+        std::int32_t x,
+        std::int32_t y,
+        std::int32_t w,
+        std::int32_t h
+    ) :
+        hdc(hdc), xBeg(x), yBeg(y), w(w), h(h)
+    {
+    }
+
+    bool Anexa(const TCor& cor) override
+    {
+        SetPixel(hdc, xBeg + x, yBeg + y, RGB(cor.R(), cor.G(), cor.B()));
+
+        x++;
+        if (x == w)
+        {
+            x = 0;
+            y++;
+        }
+
+        return true;
+    }
+
+    void Flush() override
+    {
+        // NoOp
+    }
+
+private:
+    HDC hdc;
+    std::int32_t xBeg = 0;
+    std::int32_t yBeg = 0;
+    std::int32_t w = 0;
+    std::int32_t h = 0;
+
     std::int32_t x = 0;
     std::int32_t y = 0;
 };
@@ -2116,7 +2173,7 @@ public:
         _fontes.push_back(std::unique_ptr<IFonteLuminosa>(fonte.Copia()));
     }
 
-    void Renderizar(IArquivoSaida& arq)
+    void Renderizar(IDispositivoSaida& arq)
     {
         if (auto arqLog = dynamic_cast<TArquivoLOG*>(&arq))
         {
@@ -2529,9 +2586,9 @@ private:
         RegisterClass(&_wndCls);
 
         _hWnd = CriaJanelaPrincipal();
-        _hWndBtnDesenho = CriaBotao(_hWnd, _IDC_BTN_DESENHO, L"Desenha", 10, 10, 96, 32);
+        _hWndBtnRenderScene = CriaBotao(_hWnd, _IDC_BTN_RENDER_SCENE, L"Renderiza Cena", 16, 16, 128, 32);
 
-        return _hWnd != nullptr && _hWndBtnDesenho != nullptr;
+        return _hWnd != nullptr && _hWndBtnRenderScene != nullptr;
     }
 
     WNDCLASS CriaClasse() const
@@ -2588,6 +2645,39 @@ private:
         ShowWindow(_hWnd, _nCmdShow);
     }
 
+    static void EvBtnRenderScene(HWND hWndJanelaPrincipal)
+    {
+        rendering = true;
+
+        InvalidateRect(hWndJanelaPrincipal, NULL, true);
+        UpdateWindow(hWndJanelaPrincipal);
+    }
+
+    static void RenderScene(HDC hdc)
+    {
+        auto cena = FabricaCena();
+        const std::uint16_t x = 160;
+        const std::uint16_t y = 16;
+        const std::uint16_t w = cena.Janela().LarguraCanvas();
+        const std::uint16_t h = cena.Janela().AlturaCanvas();
+
+        RECT r { x, y, x + w, y + h };
+        FillRect(hdc, &r, (HBRUSH)GetStockObject(BLACK_BRUSH));
+
+        if (rendering)
+        {
+            HCURSOR cursorAntigo = GetCursor();
+            SetCursor(LoadCursor(NULL, IDC_WAIT));
+
+            TWindowViewport wndVp(hdc, x, y, w, h);
+            cena.Renderizar(wndVp);
+
+            SetCursor(cursorAntigo);
+        }
+
+        rendering = false;
+    }
+
     void ProcessaMensagens()
     {
         MSG msg = {};
@@ -2602,17 +2692,10 @@ private:
     {
         switch (uMsg)
         {
-            case WM_DESTROY:
-                return EvQuit();
-
-            case WM_PAINT:
-                return EvPaint(hWnd);
-            
-            case WM_SETCURSOR:
-                if (EvSetCursor(lParam)) return true; break;
-
-            case WM_COMMAND:
-                return EvCommand(wParam);
+            case WM_DESTROY   : return EvQuit();
+            case WM_PAINT     : return EvPaint(hWnd);
+            case WM_SETCURSOR : if (EvSetCursor(lParam)) return true; break;
+            case WM_COMMAND   : return EvCommand(hWnd, wParam);
         }
 
         return DefWindowProc(hWnd, uMsg, wParam, lParam);
@@ -2642,18 +2725,19 @@ private:
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hWnd, &ps);
         FillRect(hdc, &ps.rcPaint, (HBRUSH) (COLOR_WINDOW+1));
+        RenderScene(hdc);
         EndPaint(hWnd, &ps);
 
         return 0;
     }
 
-    static bool EvCommand(WPARAM wParam)
+    static bool EvCommand(HWND hWnd, WPARAM wParam)
     {
         if (HIWORD(wParam) == BN_CLICKED)
         {
-            if (LOWORD(wParam) == _IDC_BTN_DESENHO)
+            if (LOWORD(wParam) == _IDC_BTN_RENDER_SCENE)
             {
-                // EvBtnDesenho
+                EvBtnRenderScene(hWnd);
             }
         }
 
@@ -2669,8 +2753,12 @@ private:
     HWND _hWnd;
     WNDCLASS _wndCls;
 
-    HWND _hWndBtnDesenho; static constexpr int _IDC_BTN_DESENHO = 1;
+    HWND _hWndBtnRenderScene; static constexpr int _IDC_BTN_RENDER_SCENE = 1;
+
+    static bool rendering;
 };
+
+bool TMainWindow::rendering = false;
 
 // ------------------------------------------------------------------------------------------------
 
