@@ -67,6 +67,8 @@
 #include <vector>
 #include <memory>
 #include <utility>
+#include <locale>
+#include <codecvt>
 
 #ifndef UNICODE
 #define UNICODE
@@ -77,7 +79,7 @@
 #include "BitmapPlusPlus.hpp"
 
 // ------------------------------------------------------------------------------------------------
-#define BUFLEN 32
+#define BUFLEN 256
 static bool bp = false;
 // ------------------------------------------------------------------------------------------------
 
@@ -1261,6 +1263,8 @@ public:
         {
             _entidades.push_back(std::unique_ptr<IEntidade3D>(entidade->Copia()));
         }
+
+        _rotulo = outra._rotulo;
     }
 
     IEntidade3D* Copia() const override
@@ -2127,6 +2131,14 @@ private:
 
 // ------------------------------------------------------------------------------------------------
 
+struct THit
+{
+    IEntidade3D* entidade;
+    double interseccao;
+};
+
+// ------------------------------------------------------------------------------------------------
+
 class TCena3D
 {
 public:
@@ -2203,20 +2215,21 @@ public:
         arq.Flush();
     }
 
-    void Log(const std::string& msg) const
+    std::string Pick(uint16_t x, uint16_t y)
     {
-        if (_arqLog != nullptr)
-        {
-            _arqLog->Anexa(msg);
-        }
-    }
-
-private:
-    TCor Cor(const TPonto3D& p) const
-    {
+        const TPonto3D p { _janela.X(x), _janela.Y(y), _janela.Centro().Z() };
         const TVetor3D d = FuncoesGeometricas::Versor(_p0, p);
         const TRaio3D raio { _p0, d };
 
+        const THit hit = ColisaoMaisProxima(raio);
+
+        return hit.entidade != nullptr ? hit.entidade->Rotulo() : "NENHUM";
+    }
+
+    // Nao sei se "colisao" eh uma boa traducao/adaptacao para hit, mas enfim
+    // pensei em deixar em ingles, NearestHit ou ClosestHit, ja misturei mesmo
+    THit ColisaoMaisProxima(const TRaio3D& raio) const
+    {
         double intersecaoMaisProximaObservador = std::numeric_limits<double>::max();
         IEntidade3D* entidadeMaisProximaObservador = nullptr;
 
@@ -2233,6 +2246,27 @@ private:
                 }
             }
         }
+
+        return { entidadeMaisProximaObservador, intersecaoMaisProximaObservador };
+    }
+
+    void Log(const std::string& msg) const
+    {
+        if (_arqLog != nullptr)
+        {
+            _arqLog->Anexa(msg);
+        }
+    }
+
+private:
+    TCor Cor(const TPonto3D& p) const
+    {
+        const TVetor3D d = FuncoesGeometricas::Versor(_p0, p);
+        const TRaio3D raio { _p0, d };
+
+        const THit hit = ColisaoMaisProxima(raio);
+        const IEntidade3D* entidadeMaisProximaObservador = hit.entidade;
+        const double intersecaoMaisProximaObservador = hit.interseccao;
 
         TCor pixel = _bgColor;
 
@@ -2547,6 +2581,60 @@ bool RenderizaImagem()
 
 // ------------------------------------------------------------------------------------------------
 
+class Globals
+{
+public:
+    Globals(const Globals&) = delete;
+    Globals(Globals&&) = delete;
+    Globals& operator=(const Globals&) = delete;
+
+    ~Globals()
+    {
+        delete cena;
+    }
+
+    static Globals& Instancia()
+    {
+        if (_instancia == nullptr)
+        {
+            _instancia = new Globals;
+        }
+
+        return *_instancia;
+    }
+
+    TCena3D& Cena()
+    {
+        return *cena;
+    }
+
+    std::wstring PickObject(int x, int y)
+    {
+        const auto _x = static_cast<std::uint16_t>(x);
+        const auto _y = static_cast<std::uint16_t>(y);
+        const std::string rotulo = cena->Pick(_x, _y);
+
+        std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+        const std::wstring pickedObj = converter.from_bytes(rotulo);
+
+        return pickedObj;
+    }
+
+private:
+    Globals()
+    {
+        cena = new TCena3D(FabricaCena());
+    }
+
+    TCena3D* cena = nullptr;
+
+    static Globals* _instancia;
+};
+
+Globals* Globals::_instancia = nullptr;
+
+// ------------------------------------------------------------------------------------------------
+
 class TMainWindow
 {
 public:
@@ -2566,6 +2654,14 @@ public:
     static constexpr const wchar_t* TituloJanela()
     {
         return L"CG1";
+    }
+    static constexpr std::uint16_t XAncoraViewport()
+    {
+        return 160;
+    }
+    static constexpr std::uint16_t YAncoraViewport()
+    {
+        return 16;
     }
 
     void Executa()
@@ -2653,9 +2749,9 @@ private:
 
     static void RenderScene(HDC hdc)
     {
-        auto cena = FabricaCena();
-        const std::uint16_t x = 160;
-        const std::uint16_t y = 16;
+        TCena3D& cena = Globals::Instancia().Cena();
+        const std::uint16_t x = XAncoraViewport();
+        const std::uint16_t y = YAncoraViewport();
         const std::uint16_t w = cena.Janela().LarguraCanvas();
         const std::uint16_t h = cena.Janela().AlturaCanvas();
 
@@ -2694,6 +2790,7 @@ private:
             case WM_PAINT     : return EvPaint(hWnd);
             case WM_SETCURSOR : if (EvSetCursor(lParam)) return true; break;
             case WM_MOUSEMOVE : EvMouseMove(hWnd, lParam); break;
+            case WM_LBUTTONUP : EvMouseLeftButtonUp(hWnd, lParam); break;
             case WM_COMMAND   : return EvCommand(hWnd, wParam);
         }
 
@@ -2739,10 +2836,29 @@ private:
         GetClassName(hWnd, buf, BUFLEN);
 
         std::wstringstream ss;
-        ss << buf << " ( X: " << xMousePos << ", Y: " << yMousePos << " )";
+        ss << buf << " ( X: " << xMousePos << ", Y: " << yMousePos << " ) - OBJ: " << pickedObject;
         auto str = ss.str();
         
         SetWindowText(hWnd, str.c_str());
+
+        return true;
+    }
+
+    static bool EvMouseLeftButtonUp(HWND hWnd, LPARAM lParam)
+    {
+        int xMousePos = GET_X_LPARAM(lParam);
+        int yMousePos = GET_Y_LPARAM(lParam);
+        if (WithinViewportClientArea(xMousePos, yMousePos))
+        {
+            ConvertToViewportCoords(xMousePos, yMousePos);
+            pickedObject = Globals::Instancia().PickObject(xMousePos, yMousePos);
+        }
+        else
+        {
+            pickedObject = L"NENHUM";
+        }
+
+        EvMouseMove(hWnd, lParam);
 
         return true;
     }
@@ -2760,6 +2876,25 @@ private:
         return 0;
     }
 
+    static bool WithinViewportClientArea(std::uint16_t x, std::uint16_t y)
+    {
+        TCena3D& cena = Globals::Instancia().Cena();
+        const auto xAncVp = XAncoraViewport();
+        const auto yAncVp = YAncoraViewport();
+
+        return x >= xAncVp && x < xAncVp + cena.Janela().LarguraCanvas() &&
+               y >= yAncVp && y < yAncVp + cena.Janela().AlturaCanvas();
+    }
+
+    static void ConvertToViewportCoords(int& x, int& y)
+    {
+        if (WithinViewportClientArea(x, y))
+        {
+            x -= XAncoraViewport();
+            y -= YAncoraViewport();
+        }
+    }
+
     std::wstring _clsName;
     std::wstring _wndTitle;
     HINSTANCE _hInstance;
@@ -2772,9 +2907,11 @@ private:
     HWND _hWndBtnRenderScene; static constexpr int _IDC_BTN_RENDER_SCENE = 1;
 
     static bool rendering;
+    static std::wstring pickedObject;
 };
 
 bool TMainWindow::rendering = false;
+std::wstring TMainWindow::pickedObject = L"NENHUM";
 
 // ------------------------------------------------------------------------------------------------
 
