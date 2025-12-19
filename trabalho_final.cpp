@@ -2479,38 +2479,59 @@ public:
         PWSTR pCmdLine,
         int nCmdShow
     ) :
-        hInstance(hInstance),
-        pCmdLine(pCmdLine),
-        nCmdShow(nCmdShow)
+        _hInstance(hInstance),
+        _pCmdLine(pCmdLine),
+        _nCmdShow(nCmdShow)
     {
     };
 
     TMainWindow& NomeClasse(const std::wstring& nomeClasse)
     {
-        clsName = nomeClasse;
+        _clsName = nomeClasse;
         return *this;
     };
 
     TMainWindow& TituloJanela(const std::wstring& tituloJanela)
     {
-        wndTitle = tituloJanela;
+        _wndTitle = tituloJanela;
         return *this;
     };
 
     void Executa()
     {
-        const wchar_t* CLASS_NAME  = clsName.c_str();
+        if (MontaJanelaPrincipal())
+        {
+            ExibeJanelaPrincipal();
+            ProcessaMensagens();
+        }
+    }
 
+private:
+    bool MontaJanelaPrincipal()
+    {
+        _wndCls = CriaClasse();
+        RegisterClass(&_wndCls);
+
+        _hWnd = CriaJanelaPrincipal();
+        return _hWnd != nullptr;
+    }
+
+    WNDCLASS CriaClasse()
+    {
         WNDCLASS wc = {};
         wc.lpfnWndProc   = TMainWindow::WindowProc;
-        wc.hInstance     = hInstance;
-        wc.lpszClassName = CLASS_NAME;
-        RegisterClass(&wc);
+        wc.hInstance     = _hInstance;
+        wc.lpszClassName = _clsName.c_str();
 
-        HWND hwnd = CreateWindowEx(
+        return wc;
+    }
+
+    HWND CriaJanelaPrincipal()
+    {
+        HWND hWnd = CreateWindowEx(
             0,                              // Optional window styles.
-            CLASS_NAME,                     // Window class
-            wndTitle.c_str(),               // Window text
+            _clsName.c_str(),               // Window class
+            _wndTitle.c_str(),              // Window text
             WS_OVERLAPPEDWINDOW,            // Window style
 
             // Size and position
@@ -2518,17 +2539,20 @@ public:
 
             NULL,       // Parent window    
             NULL,       // Menu
-            hInstance,  // Instance handle
+            _hInstance, // Instance handle
             NULL        // Additional application data
         );
 
-        if (hwnd == NULL)
-        {
-            return;
-        }
+        return hWnd;
+    }
 
-        ShowWindow(hwnd, nCmdShow);
+    void ExibeJanelaPrincipal()
+    {
+        ShowWindow(_hWnd, _nCmdShow);
+    }
 
+    void ProcessaMensagens()
+    {
         MSG msg = {};
         while (GetMessage(&msg, NULL, 0, 0))
         {
@@ -2537,33 +2561,45 @@ public:
         }
     }
 
-private:
-    static LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+    static LRESULT CALLBACK WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     {
         switch (uMsg)
         {
             case WM_DESTROY:
-                PostQuitMessage(0);
-                return 0;
+                return EvQuit();
 
             case WM_PAINT:
-                {
-                    PAINTSTRUCT ps;
-                    HDC hdc = BeginPaint(hwnd, &ps);
-                    FillRect(hdc, &ps.rcPaint, (HBRUSH) (COLOR_WINDOW+1));
-                    EndPaint(hwnd, &ps);
-                }
-                return 0;
+                return EvPaint(hWnd);
         }
 
-        return DefWindowProc(hwnd, uMsg, wParam, lParam);
+        return DefWindowProc(hWnd, uMsg, wParam, lParam);
     }
 
-    std::wstring clsName;
-    std::wstring wndTitle;
-    HINSTANCE hInstance;
-    PWSTR pCmdLine;
-    int nCmdShow;
+    static bool EvQuit()
+    {
+        PostQuitMessage(0);
+
+        return 0;
+    }
+
+    static bool EvPaint(HWND hWnd)
+    {
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hWnd, &ps);
+        FillRect(hdc, &ps.rcPaint, (HBRUSH) (COLOR_WINDOW+1));
+        EndPaint(hWnd, &ps);
+
+        return 0;
+    }
+
+    std::wstring _clsName;
+    std::wstring _wndTitle;
+    HINSTANCE _hInstance;
+    PWSTR _pCmdLine;
+    int _nCmdShow;
+
+    HWND _hWnd;
+    WNDCLASS _wndCls;
 };
 
 // ------------------------------------------------------------------------------------------------
