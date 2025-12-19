@@ -2471,6 +2471,22 @@ std::unique_ptr<IArquivoSaida> FabricaArquivo(
 
 // ------------------------------------------------------------------------------------------------
 
+bool RenderizaImagem()
+{
+    TCena3D cena = FabricaCena();
+    const std::unique_ptr<IArquivoSaida> arq = FabricaArquivo("a", EFormatoImagem::BMP, cena);
+
+    const bool erro = !arq->Aberto();
+    if (!erro)
+    {
+        cena.Renderizar(*arq);
+    }
+
+    return erro;
+}
+
+// ------------------------------------------------------------------------------------------------
+
 class TMainWindow
 {
 public:
@@ -2513,10 +2529,12 @@ private:
         RegisterClass(&_wndCls);
 
         _hWnd = CriaJanelaPrincipal();
-        return _hWnd != nullptr;
+        _hWndBtnDesenho = CriaBotao(_hWnd, _IDC_BTN_DESENHO, L"Desenha", 10, 10, 96, 32);
+
+        return _hWnd != nullptr && _hWndBtnDesenho != nullptr;
     }
 
-    WNDCLASS CriaClasse()
+    WNDCLASS CriaClasse() const
     {
         WNDCLASS wc = {};
         wc.lpfnWndProc   = TMainWindow::WindowProc;
@@ -2526,10 +2544,10 @@ private:
         return wc;
     }
 
-    HWND CriaJanelaPrincipal()
+    HWND CriaJanelaPrincipal() const
     {
         HWND hWnd = CreateWindowEx(
-            0,                              // Optional window styles.
+            0,                              // Optional window styles
             _clsName.c_str(),               // Window class
             _wndTitle.c_str(),              // Window text
             WS_OVERLAPPEDWINDOW,            // Window style
@@ -2542,6 +2560,25 @@ private:
             _hInstance, // Instance handle
             NULL        // Additional application data
         );
+
+        return hWnd;
+    }
+
+    HWND CriaBotao(HWND parent, int id, const std::wstring& txt, int x, int y, int w, int h) const
+    {
+        HWND hWnd = CreateWindowEx( 
+            0,                   // Optional window styles
+            L"BUTTON",           // Predefined class; Unicode assumed
+            txt.c_str(),         // Button text
+            WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, // Styles
+            x,                   // x position
+            y,                   // y position
+            w,                   // Button width
+            h,                   // Button height
+            parent,              // Parent window
+            (HMENU)(intptr_t)id, // Control ID for child windows
+            (HINSTANCE)GetWindowLongPtr(parent, GWLP_HINSTANCE), 
+            NULL);               // Pointer not needed.
 
         return hWnd;
     }
@@ -2570,6 +2607,9 @@ private:
 
             case WM_PAINT:
                 return EvPaint(hWnd);
+
+            case WM_COMMAND:
+                return EvCommand(wParam);
         }
 
         return DefWindowProc(hWnd, uMsg, wParam, lParam);
@@ -2592,6 +2632,19 @@ private:
         return 0;
     }
 
+    static bool EvCommand(WPARAM wParam)
+    {
+        if (HIWORD(wParam) == BN_CLICKED)
+        {
+            if (LOWORD(wParam) == _IDC_BTN_DESENHO)
+            {
+                // EvBtnDesenho
+            }
+        }
+
+        return 0;
+    }
+
     std::wstring _clsName;
     std::wstring _wndTitle;
     HINSTANCE _hInstance;
@@ -2600,16 +2653,14 @@ private:
 
     HWND _hWnd;
     WNDCLASS _wndCls;
+
+    HWND _hWndBtnDesenho; static constexpr int _IDC_BTN_DESENHO = 1;
 };
 
 // ------------------------------------------------------------------------------------------------
 
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, PWSTR pCmdLine, int nCmdShow)
 {
-    // TCena3D cena = FabricaCena();
-    // const std::unique_ptr<IArquivoSaida> arq = FabricaArquivo("a", EFormatoImagem::BMP, cena);
-    // cena.Renderizar(*arq);
-
     const std::wstring tituloJanela = L"CG1";
     TMainWindow(hInstance, pCmdLine, nCmdShow)
         .NomeClasse(tituloJanela)
