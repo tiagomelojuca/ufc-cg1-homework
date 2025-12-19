@@ -77,6 +77,7 @@
 #include "BitmapPlusPlus.hpp"
 
 // ------------------------------------------------------------------------------------------------
+#define BUFLEN 32
 static bool bp = false;
 // ------------------------------------------------------------------------------------------------
 
@@ -2739,8 +2740,8 @@ private:
         const int xMousePos = GET_X_LPARAM(lParam);
         const int yMousePos = GET_Y_LPARAM(lParam);
 
-        wchar_t buf[32];
-        GetClassName(hWnd, buf, 32);
+        wchar_t buf[BUFLEN];
+        GetClassName(hWnd, buf, BUFLEN);
 
         std::wstringstream ss;
         ss << buf << " ( X: " << xMousePos << ", Y: " << yMousePos << " )";
