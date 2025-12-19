@@ -2557,21 +2557,16 @@ public:
     ) :
         _hInstance(hInstance),
         _pCmdLine(pCmdLine),
-        _nCmdShow(nCmdShow)
+        _nCmdShow(nCmdShow),
+        _clsName(TituloJanela()),
+        _wndTitle(TituloJanela())
     {
     };
 
-    TMainWindow& NomeClasse(const std::wstring& nomeClasse)
+    static constexpr const wchar_t* TituloJanela()
     {
-        _clsName = nomeClasse;
-        return *this;
-    };
-
-    TMainWindow& TituloJanela(const std::wstring& tituloJanela)
-    {
-        _wndTitle = tituloJanela;
-        return *this;
-    };
+        return L"CG1";
+    }
 
     void Executa()
     {
@@ -2785,11 +2780,7 @@ bool TMainWindow::rendering = false;
 
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, PWSTR pCmdLine, int nCmdShow)
 {
-    const std::wstring tituloJanela = L"CG1";
-    TMainWindow(hInstance, pCmdLine, nCmdShow)
-        .NomeClasse(tituloJanela)
-        .TituloJanela(tituloJanela)
-        .Executa();
+    TMainWindow(hInstance, pCmdLine, nCmdShow).Executa();
 
     return 0;
 }
