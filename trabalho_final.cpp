@@ -63,6 +63,7 @@
 #include <cmath>
 #include <fstream>
 #include <string>
+#include <sstream>
 #include <vector>
 #include <memory>
 #include <utility>
@@ -71,6 +72,7 @@
 #define UNICODE
 #endif
 #include <windows.h>
+#include <windowsx.h>
 
 #include "BitmapPlusPlus.hpp"
 
@@ -710,11 +712,11 @@ private:
 
 // ------------------------------------------------------------------------------------------------
 
-class TWindowViewport : public IDispositivoSaida
+class TWin32Viewport : public IDispositivoSaida
 {
 public:
-    TWindowViewport() = delete;
-    TWindowViewport(
+    TWin32Viewport() = delete;
+    TWin32Viewport(
         HDC hdc,
         std::int32_t x,
         std::int32_t y,
@@ -2669,7 +2671,7 @@ private:
             HCURSOR cursorAntigo = GetCursor();
             SetCursor(LoadCursor(NULL, IDC_WAIT));
 
-            TWindowViewport wndVp(hdc, x, y, w, h);
+            TWin32Viewport wndVp(hdc, x, y, w, h);
             cena.Renderizar(wndVp);
 
             SetCursor(cursorAntigo);
@@ -2695,6 +2697,7 @@ private:
             case WM_DESTROY   : return EvQuit();
             case WM_PAINT     : return EvPaint(hWnd);
             case WM_SETCURSOR : if (EvSetCursor(lParam)) return true; break;
+            case WM_MOUSEMOVE : EvMouseMove(hWnd, lParam); break;
             case WM_COMMAND   : return EvCommand(hWnd, wParam);
         }
 
@@ -2704,6 +2707,17 @@ private:
     static bool EvQuit()
     {
         PostQuitMessage(0);
+
+        return 0;
+    }
+
+    static bool EvPaint(HWND hWnd)
+    {
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hWnd, &ps);
+        FillRect(hdc, &ps.rcPaint, (HBRUSH) (COLOR_WINDOW+1));
+        RenderScene(hdc);
+        EndPaint(hWnd, &ps);
 
         return 0;
     }
@@ -2720,15 +2734,21 @@ private:
         return ok;
     }
 
-    static bool EvPaint(HWND hWnd)
+    static bool EvMouseMove(HWND hWnd, LPARAM lParam)
     {
-        PAINTSTRUCT ps;
-        HDC hdc = BeginPaint(hWnd, &ps);
-        FillRect(hdc, &ps.rcPaint, (HBRUSH) (COLOR_WINDOW+1));
-        RenderScene(hdc);
-        EndPaint(hWnd, &ps);
+        const int xMousePos = GET_X_LPARAM(lParam);
+        const int yMousePos = GET_Y_LPARAM(lParam);
 
-        return 0;
+        wchar_t buf[32];
+        GetClassName(hWnd, buf, 32);
+
+        std::wstringstream ss;
+        ss << buf << " ( X: " << xMousePos << ", Y: " << yMousePos << " )";
+        auto str = ss.str();
+        
+        SetWindowText(hWnd, str.c_str());
+
+        return true;
     }
 
     static bool EvCommand(HWND hWnd, WPARAM wParam)
