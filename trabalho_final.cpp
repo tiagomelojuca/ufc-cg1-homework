@@ -2471,92 +2471,116 @@ std::unique_ptr<IArquivoSaida> FabricaArquivo(
 
 // ------------------------------------------------------------------------------------------------
 
-LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+class TMainWindow
 {
-    switch (uMsg)
+public:
+    TMainWindow(
+        HINSTANCE hInstance,
+        PWSTR pCmdLine,
+        int nCmdShow
+    ) :
+        hInstance(hInstance),
+        pCmdLine(pCmdLine),
+        nCmdShow(nCmdShow)
     {
-    case WM_DESTROY:
-        PostQuitMessage(0);
-        return 0;
+    };
 
-    case WM_PAINT:
+    TMainWindow& NomeClasse(const std::wstring& nomeClasse)
+    {
+        clsName = nomeClasse;
+        return *this;
+    };
+
+    TMainWindow& TituloJanela(const std::wstring& tituloJanela)
+    {
+        wndTitle = tituloJanela;
+        return *this;
+    };
+
+    void Executa()
+    {
+        const wchar_t* CLASS_NAME  = clsName.c_str();
+
+        WNDCLASS wc = {};
+        wc.lpfnWndProc   = TMainWindow::WindowProc;
+        wc.hInstance     = hInstance;
+        wc.lpszClassName = CLASS_NAME;
+        RegisterClass(&wc);
+
+        HWND hwnd = CreateWindowEx(
+            0,                              // Optional window styles.
+            CLASS_NAME,                     // Window class
+            wndTitle.c_str(),               // Window text
+            WS_OVERLAPPEDWINDOW,            // Window style
+
+            // Size and position
+            CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
+
+            NULL,       // Parent window    
+            NULL,       // Menu
+            hInstance,  // Instance handle
+            NULL        // Additional application data
+        );
+
+        if (hwnd == NULL)
         {
-            PAINTSTRUCT ps;
-            HDC hdc = BeginPaint(hwnd, &ps);
-
-            // All painting occurs here, between BeginPaint and EndPaint.
-            FillRect(hdc, &ps.rcPaint, (HBRUSH) (COLOR_WINDOW+1));
-            EndPaint(hwnd, &ps);
+            return;
         }
-        return 0;
+
+        ShowWindow(hwnd, nCmdShow);
+
+        MSG msg = {};
+        while (GetMessage(&msg, NULL, 0, 0))
+        {
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
     }
 
-    return DefWindowProc(hwnd, uMsg, wParam, lParam);
-}
+private:
+    static LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+    {
+        switch (uMsg)
+        {
+            case WM_DESTROY:
+                PostQuitMessage(0);
+                return 0;
+
+            case WM_PAINT:
+                {
+                    PAINTSTRUCT ps;
+                    HDC hdc = BeginPaint(hwnd, &ps);
+                    FillRect(hdc, &ps.rcPaint, (HBRUSH) (COLOR_WINDOW+1));
+                    EndPaint(hwnd, &ps);
+                }
+                return 0;
+        }
+
+        return DefWindowProc(hwnd, uMsg, wParam, lParam);
+    }
+
+    std::wstring clsName;
+    std::wstring wndTitle;
+    HINSTANCE hInstance;
+    PWSTR pCmdLine;
+    int nCmdShow;
+};
 
 // ------------------------------------------------------------------------------------------------
 
-int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR pCmdLine, int nCmdShow)
+int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, PWSTR pCmdLine, int nCmdShow)
 {
+    // TCena3D cena = FabricaCena();
+    // const std::unique_ptr<IArquivoSaida> arq = FabricaArquivo("a", EFormatoImagem::BMP, cena);
+    // cena.Renderizar(*arq);
 
-    // Register the window class.
-    const wchar_t CLASS_NAME[]  = L"Sample Window Class";
-    
-    WNDCLASS wc = { };
-
-    wc.lpfnWndProc   = WindowProc;
-    wc.hInstance     = hInstance;
-    wc.lpszClassName = CLASS_NAME;
-
-    RegisterClass(&wc);
-
-    // Create the window.
-
-    HWND hwnd = CreateWindowEx(
-        0,                              // Optional window styles.
-        CLASS_NAME,                     // Window class
-        L"Learn to Program Windows",    // Window text
-        WS_OVERLAPPEDWINDOW,            // Window style
-
-        // Size and position
-        CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
-
-        NULL,       // Parent window    
-        NULL,       // Menu
-        hInstance,  // Instance handle
-        NULL        // Additional application data
-        );
-
-    if (hwnd == NULL)
-    {
-        return 0;
-    }
-
-    ShowWindow(hwnd, nCmdShow);
-
-    // Run the message loop.
-    MSG msg = { };
-    while (GetMessage(&msg, NULL, 0, 0))
-    {
-        TranslateMessage(&msg);
-        DispatchMessage(&msg);
-    }
+    const std::wstring tituloJanela = L"CG1";
+    TMainWindow(hInstance, pCmdLine, nCmdShow)
+        .NomeClasse(tituloJanela)
+        .TituloJanela(tituloJanela)
+        .Executa();
 
     return 0;
 }
-
-// int main()
-// {
-//     TCena3D cena = FabricaCena();
-//     const std::unique_ptr<IArquivoSaida> arq = FabricaArquivo("a", EFormatoImagem::BMP, cena);
-
-//     const bool erro = !arq->Aberto();
-//     if (!erro)
-//     {
-//         cena.Renderizar(*arq);
-//     }
-
-//     return erro;
-// }
 
 // ------------------------------------------------------------------------------------------------
