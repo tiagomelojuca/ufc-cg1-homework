@@ -2607,6 +2607,9 @@ private:
 
             case WM_PAINT:
                 return EvPaint(hWnd);
+            
+            case WM_SETCURSOR:
+                if (EvSetCursor(lParam)) return true; break;
 
             case WM_COMMAND:
                 return EvCommand(wParam);
@@ -2620,6 +2623,18 @@ private:
         PostQuitMessage(0);
 
         return 0;
+    }
+
+    static bool EvSetCursor(LPARAM lParam)
+    {
+        bool ok = false;
+        if (LOWORD(lParam) == HTCLIENT)
+        {
+            SetCursor(LoadCursor(NULL, IDC_ARROW));
+            ok = true;
+        }
+
+        return ok;
     }
 
     static bool EvPaint(HWND hWnd)
