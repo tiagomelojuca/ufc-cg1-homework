@@ -3,3 +3,4 @@
 *.ppm
 *.bmp
 !tex.bmp
+Trace.txt

@@ -69,6 +69,7 @@
 #include <utility>
 #include <locale>
 #include <codecvt>
+#include <iostream>
 
 #ifndef UNICODE
 #define UNICODE
@@ -81,6 +82,54 @@
 // ------------------------------------------------------------------------------------------------
 #define BUFLEN 256
 static bool bp = false;
+// ------------------------------------------------------------------------------------------------
+
+class Tracer
+{
+public:
+    static void Trace(const char* msg)
+    {
+        if (_isTraceActive)
+        {
+            if (_traceToFile)
+            {
+                // Acho que aqui nao precisa setar a flag out explicitamente por ja
+                // ser uma ofstream, inclusive funciona sem, mas como nao pesquisei muito
+                // e vi que no ctor default da libstdc++ seta, vou deixar assim mesmo
+                std::ofstream os("Trace.txt", std::ios_base::out | std::ios_base::app);
+                if (os.is_open())
+                {
+                    os << msg << std::endl;
+                }
+                os.close();
+            }
+            else
+            {
+                // Pelo VS, acho que tem que ser assim. Testar depois
+                // OutputDebugStringA(msg);
+                std::cout << msg << std::endl;
+            }
+        }
+    }
+
+    static void TraceActive(bool traceActive)
+    {
+        _isTraceActive = traceActive;
+    }
+
+    static void TraceToFile(bool traceToFile)
+    {
+        _traceToFile = traceToFile;
+    }
+
+private:
+    static bool _isTraceActive;
+    static bool _traceToFile;
+};
+
+bool Tracer::_isTraceActive = true;
+bool Tracer::_traceToFile   = true;
+
 // ------------------------------------------------------------------------------------------------
 
 template <typename T, typename S>
