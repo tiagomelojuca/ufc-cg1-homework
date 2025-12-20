@@ -225,6 +225,37 @@ protected:
 
 // ------------------------------------------------------------------------------------------------
 
+class TCor
+{
+public:
+    TCor() = default;
+    TCor(uint8_t r, uint8_t g, uint8_t b) : _r(r), _g(g), _b(b) {}
+
+    bool operator==(const TCor& outra) const
+    {
+        return _r == outra._r && _g == outra._g && _b == outra._b;
+    }
+
+    uint8_t R() const { return _r; };
+    uint8_t G() const { return _g; };
+    uint8_t B() const { return _b; };
+
+    void R(uint8_t r) { _r = r; };
+    void G(uint8_t g) { _g = g; };
+    void B(uint8_t b) { _b = b; };
+
+private:
+    uint8_t _r = 0;
+    uint8_t _g = 0;
+    uint8_t _b = 0;
+};
+
+// ------------------------------------------------------------------------------------------------
+
+using TImagem = TMatriz<TCor, uint16_t>;
+
+// ------------------------------------------------------------------------------------------------
+
 class TVetor4D
 {
 public:
@@ -413,33 +444,6 @@ private:
 
 // ------------------------------------------------------------------------------------------------
 
-class TCor
-{
-public:
-    TCor() = default;
-    TCor(uint8_t r, uint8_t g, uint8_t b) : _r(r), _g(g), _b(b) {}
-
-    bool operator==(const TCor& outra) const
-    {
-        return _r == outra._r && _g == outra._g && _b == outra._b;
-    }
-
-    uint8_t R() const { return _r; };
-    uint8_t G() const { return _g; };
-    uint8_t B() const { return _b; };
-
-    void R(uint8_t r) { _r = r; };
-    void G(uint8_t g) { _g = g; };
-    void B(uint8_t b) { _b = b; };
-
-private:
-    uint8_t _r = 0;
-    uint8_t _g = 0;
-    uint8_t _b = 0;
-};
-
-// ------------------------------------------------------------------------------------------------
-
 enum class EFormatoImagem { LOG, PPM, BMP };
 
 // ------------------------------------------------------------------------------------------------
@@ -466,6 +470,10 @@ std::string Extensao(EFormatoImagem formato)
 
 // ------------------------------------------------------------------------------------------------
 
+// Eu acho que no mundo Linux o pessoal chama de arquivo tambem, entao daria pra
+// ter uma certa liberdade poetica aqui, mas vamos separar os nomes pra ficar mais claro,
+// inclusive em relacao as responsabilidades da API de cada um (um dispositivo grafico
+// abstrato nao tem um "caminho" no sistema de arquivos, por exemplo)
 class IDispositivoSaida
 {
 public:
@@ -762,6 +770,139 @@ private:
 
 // ------------------------------------------------------------------------------------------------
 
+class TFrameBuffer : public IDispositivoSaida
+{
+public:
+    TFrameBuffer() = delete;
+
+    TFrameBuffer(uint16_t w, uint16_t h)
+    {
+        _imagem = new TImagem(h, w);
+    }
+
+    TFrameBuffer(const TFrameBuffer& outro)
+    {
+        _imagem = new TImagem(*outro._imagem);
+        _outDevice = outro._outDevice;
+    }
+
+    TFrameBuffer(TFrameBuffer&& outro)
+    {
+        _imagem = outro._imagem;
+        outro._imagem = nullptr;
+
+        _outDevice = outro._outDevice;
+
+        _x = outro._x;
+        _y = outro._y;
+    }
+
+    TFrameBuffer& operator=(const TFrameBuffer& outro)
+    {
+        if (&outro != this)
+        {
+            _imagem = new TImagem(*outro._imagem);
+            _outDevice = outro._outDevice;
+
+            _x = outro._x;
+            _y = outro._y;
+        }
+
+        return *this;
+    }
+
+    TFrameBuffer& operator=(TFrameBuffer&& outro)
+    {
+        if (&outro != this)
+        {
+            _imagem = outro._imagem;
+            outro._imagem = nullptr;
+
+            _outDevice = outro._outDevice;
+
+            _x = outro._x;
+            _y = outro._y;
+        }
+
+        return *this;
+    }
+
+    virtual ~TFrameBuffer()
+    {
+        delete _imagem;
+    }
+
+    bool Anexa(const TCor& cor) override
+    {
+        Pixel(_x, _y, cor);
+
+        _x++;
+        if (_x == Largura())
+        {
+            _x = 0;
+            _y++;
+        }
+
+        return true;
+    }
+
+    // Um frame buffer eh um dispositivo grafico intermediario.
+    // Vamos prover uma API para acesso direto, mas, opcionalmente,
+    // o usuario pode especificar um dispositivo grafico de saida
+    // (como uma TWin32Viewport), de forma que, na chamada de Flush
+    // (como em TCena3D::Renderizar), os pixels sejam transferidos
+    // de forma gerenciada para esse dispositivo de saida final
+    // NOTA: o buffer nao eh "dono" do out device, ou seja, nao eh
+    // responsavel por gerenciar sua memoria
+    void OutDevice(IDispositivoSaida& outro)
+    {
+        _outDevice = &outro;
+    }
+
+    uint16_t Largura() const
+    {
+        return _imagem->NumeroColunas();
+    }
+    uint16_t Altura() const
+    {
+        return _imagem->NumeroLinhas();
+    }
+
+    const TCor& Pixel(uint16_t x, uint16_t y) const
+    {
+        return (*_imagem)[y][x];
+    }
+    void Pixel(uint16_t x, uint16_t y, const TCor& cor)
+    {
+        (*_imagem)[y][x] = cor;
+    }
+
+    void Flush() override
+    {
+        if (_outDevice != nullptr)
+        {
+            for (uint16_t x = 0; x < Largura(); x++)
+            {
+                for (uint16_t y = 0; y < Altura(); y++)
+                {
+                    _outDevice->Anexa(Pixel(x, y));
+                }
+            }
+
+            _outDevice = nullptr;
+        }
+    }
+
+private:
+    TImagem* _imagem = nullptr;
+    IDispositivoSaida* _outDevice = nullptr;
+
+    std::uint16_t _x = 0;
+    std::uint16_t _y = 0;
+};
+
+// ------------------------------------------------------------------------------------------------
+
 namespace FuncoesGerais
 {
     bool EstaEm(double val, double min, double max, bool inicioFechado = true, bool fimFechado = true)
@@ -815,10 +956,6 @@ namespace FuncoesGerais
         return std::unique_ptr<IArquivoSaida>(arq);
     }
 }
-
-// ------------------------------------------------------------------------------------------------
-
-using TImagem = TMatriz<TCor, uint16_t>;
 
 // ------------------------------------------------------------------------------------------------
 
@@ -2763,8 +2900,16 @@ private:
             HCURSOR cursorAntigo = GetCursor();
             SetCursor(LoadCursor(NULL, IDC_WAIT));
 
-            TWin32Viewport wndVp(hdc, x, y, w, h);
-            cena.Renderizar(wndVp);
+            // Um teste interessante eh comparar o tempo de desenho propriamente dito
+            // entre renderizar direto na viewport, ou no framebuffer como device
+            // intermediario fazendo flush na viewport. O tempo total eh o mesmo, ja
+            // que nao tem como fugir dos calculos pesados para cada pixel, mas eh
+            // interessante comparar a velocidade de escrita dos pixels on demand
+            // versus previamente armazenados no framebuffer
+            TFrameBuffer fb(w, h);
+            TWin32Viewport vp(hdc, x, y, w, h);
+            fb.OutDevice(vp);
+            cena.Renderizar(fb);
 
             SetCursor(cursorAntigo);
         }
