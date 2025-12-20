@@ -917,22 +917,34 @@ public:
         return _imagem->NumeroLinhas();
     }
 
+    // O tipo TImagem eh implementado sobre uma classe de matriz subjacente
+    // (underlying container) que tem dois detalhes importantes, a saber:
+    // 1) a indexacao comeca de 1, nao de 0, como eh comum em programacao,
+    //    fiz assim pois, para matrizes, me parece mais natural
+    // 2) a ordem de acesso eh mtx[linha][coluna], de forma que temos que
+    //    inverter x e y, ja que x seria a coluna, e nao a linha... mas essa
+    //    de fato eh a forma canonica de se implementar uma classe de matriz
     const TCor& Pixel(uint16_t x, uint16_t y) const
     {
-        return (*_imagem)[y][x];
+        return (*_imagem)[y + 1][x + 1];
     }
     void Pixel(uint16_t x, uint16_t y, const TCor& cor)
     {
-        (*_imagem)[y][x] = cor;
+        (*_imagem)[y + 1][x + 1] = cor;
     }
 
     void Flush() override
     {
         if (_outDevice != nullptr)
         {
-            for (uint16_t x = 0; x < Largura(); x++)
+            // Os dispositivos de saida implementam suas logicas de anexar cor
+            // de acordo com a ordem de renderizacao da cena, lin > col, isto eh,
+            // para cada linha l, para cada coluna c, renderize o pixel (c, l).
+            // Portanto, devemos aninhar nosso loop nesse formato para que os pixels
+            // sejam escritos nessa ordem que o dispositivo de saida final espera
+            for (uint16_t y = 0; y < Altura(); y++)
             {
-                for (uint16_t y = 0; y < Altura(); y++)
+                for (uint16_t x = 0; x < Largura(); x++)
                 {
                     _outDevice->Anexa(Pixel(x, y));
                 }
