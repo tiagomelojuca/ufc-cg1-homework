@@ -2316,7 +2316,7 @@ TPlano FabricaChao()
     material.KaG(0.0);
     material.KaB(0.0);
     material.M(1.0);
-    material.CarregaTextura("tex.bmp");
+    material.CarregaTextura("recursos/Misc/tex.bmp");
     material.Textura()->K(30.0);
 
     TPlano planoChao { { 0.0, -150.0, 0.0 }, { 0.0, 1.0, 0.0 } };

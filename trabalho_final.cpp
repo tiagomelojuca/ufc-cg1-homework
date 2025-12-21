@@ -86,7 +86,7 @@ static bool bp = false;
 
 namespace ResTbl
 {
-    static constexpr const char* TEXTURA_MADEIRA = "recursos/tex.bmp";
+    static constexpr const char* TEXTURA_MADEIRA = "recursos/Misc/tex.bmp";
 }
 
 // ------------------------------------------------------------------------------------------------
