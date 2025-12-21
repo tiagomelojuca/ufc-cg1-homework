@@ -511,6 +511,9 @@ int main()
     // |     z   (0,0,0) |
     // |                 |
     // |_________________|
+    // 
+    // Por obvio, nossos objetos devem ficar em coordenadas Z negativas
+    // para que possam ser observados
 
     TArquivoPPM arq("teste.ppm", janela.LarguraCanvas(), janela.AlturaCanvas());
 
