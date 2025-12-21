@@ -77,11 +77,18 @@
 #include <windows.h>
 #include <windowsx.h>
 
-#include "BitmapPlusPlus.hpp"
+#include "dependencias/BitmapPlusPlus.hpp"
 
 // ------------------------------------------------------------------------------------------------
 #define BUFLEN 256
 static bool bp = false;
+// ------------------------------------------------------------------------------------------------
+
+namespace ResTbl
+{
+    static constexpr const char* TEXTURA_MADEIRA = "recursos/tex.bmp";
+}
+
 // ------------------------------------------------------------------------------------------------
 
 class Tracer
@@ -2631,7 +2638,7 @@ TPlano FabricaChao()
     material.KaG(0.0);
     material.KaB(0.0);
     material.M(1.0);
-    material.CarregaTextura("tex.bmp");
+    material.CarregaTextura(ResTbl::TEXTURA_MADEIRA);
     material.Textura()->K(30.0);
 
     TPlano planoChao { { 0.0, -150.0, 0.0 }, { 0.0, 1.0, 0.0 } };

@@ -82,7 +82,7 @@
 #include <memory>
 #include <utility>
 
-#include "BitmapPlusPlus.hpp"
+#include "dependencias/BitmapPlusPlus.hpp"
 
 // ------------------------------------------------------------------------------------------------
 static bool bp = false;

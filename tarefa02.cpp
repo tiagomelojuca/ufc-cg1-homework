@@ -24,7 +24,7 @@
 #include <vector>
 #include <memory>
 
-#include "BitmapPlusPlus.hpp"
+#include "dependencias/BitmapPlusPlus.hpp"
 
 // ------------------------------------------------------------------------------------------------
 

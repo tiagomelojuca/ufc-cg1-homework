@@ -29,7 +29,7 @@
 // #define UTILIZA_BITMAP_PLUS_PLUS
 
 #ifdef UTILIZA_BITMAP_PLUS_PLUS
-    #include "BitmapPlusPlus.hpp"
+    #include "dependencias/BitmapPlusPlus.hpp"
 #else
     // Fiz a exportacao em bitmap so pra ajudar nas minhas depuracoes,
     // nao vou mandar junto. Se nao tem a biblioteca, usa essa classe
