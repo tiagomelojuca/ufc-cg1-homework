@@ -2967,10 +2967,11 @@ private:
             // que nao tem como fugir dos calculos pesados para cada pixel, mas eh
             // interessante comparar a velocidade de escrita dos pixels on demand
             // versus previamente armazenados no framebuffer
-            TFrameBuffer fb(w, h);
+            // TFrameBuffer fb(w, h);
             TWin32Viewport vp(hdc, x, y, w, h);
-            fb.OutDevice(vp);
-            cena.Renderizar(fb);
+            // fb.OutDevice(vp);
+            // cena.Renderizar(fb);
+            cena.Renderizar(vp);
 
             SetCursor(cursorAntigo);
         }
