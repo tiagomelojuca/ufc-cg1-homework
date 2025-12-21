@@ -501,6 +501,17 @@ int main()
     const uint16_t hCanvas = 500u;
     const TJanela janela { { 0.0, 0.0, -dJanela }, wJanela, hJanela, wCanvas, hCanvas };
 
+    // Nossa janela e sistema de coordenadas ficara algo mais ou menos assim:
+    //          y
+    //  _________________
+    // |       / \       |
+    // |        |        |
+    // |        |        |
+    // |       (.)------>| x
+    // |     z   (0,0,0) |
+    // |                 |
+    // |_________________|
+
     TArquivoPPM arq("teste.ppm", janela.LarguraCanvas(), janela.AlturaCanvas());
 
     const bool erro = !arq.Aberto();
