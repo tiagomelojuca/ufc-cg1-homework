@@ -1861,6 +1861,39 @@ private:
 
 // ------------------------------------------------------------------------------------------------
 
+class TMalha3D : public TEntidadeComposta
+{
+public:
+    TMalha3D() = default;
+
+    IEntidade3D* Copia() const override
+    {
+        return new TMalha3D(*this);
+    }
+
+    void Material(const TMaterial& material)
+    {
+        _material = material;
+
+        for (std::unique_ptr<IEntidade3D>& entidade : _entidades)
+        {
+            auto triangulo = static_cast<TSuperficieTriangular&>(*entidade.get());
+            triangulo.Material(_material);
+        }
+    }
+
+    void Adiciona(const TSuperficieTriangular& triangulo)
+    {
+        TEntidadeComposta::Insere(triangulo);
+        static_cast<TSuperficieTriangular&>(*_entidades.back().get()).Material(_material);
+    }
+
+private:
+    TMaterial _material;
+};
+
+// ------------------------------------------------------------------------------------------------
+
 class TEsfera : public IEntidade3D
 {
 public:
@@ -2697,6 +2730,17 @@ TCubo FabricaCubo()
 
 // ------------------------------------------------------------------------------------------------
 
+TMalha3D FabricaMalha()
+{
+    TMalha3D malha;
+    malha.Rotulo("MALHA_1");
+    malha.Material(FabricaMaterialHomogeneo({ 1.0, 0.078, 0.576 }, 10.0));
+
+    return malha;
+}
+
+// ------------------------------------------------------------------------------------------------
+
 TEsfera FabricaEsfera()
 {
     TEsfera esfera { { 0.0, 95.0, -200.0 }, 5.0 };
@@ -2737,10 +2781,11 @@ TCena3D FabricaCena()
     cena.Insere(FabricaParedeFrontal());
     cena.Insere(FabricaParedeLateralEsquerda());
     cena.Insere(FabricaTeto());
-    cena.Insere(FabricaCilindro());
-    cena.Insere(FabricaCone());
-    cena.Insere(FabricaCubo());
-    cena.Insere(FabricaEsfera());
+    // cena.Insere(FabricaCilindro());
+    // cena.Insere(FabricaCone());
+    // cena.Insere(FabricaCubo());
+    cena.Insere(FabricaMalha());
+    // cena.Insere(FabricaEsfera());
     cena.Insere(FabricaFontePontual());
 
     return cena;
