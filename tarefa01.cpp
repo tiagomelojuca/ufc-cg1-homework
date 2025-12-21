@@ -492,13 +492,12 @@ private:
 
 int main()
 {
-    const TPonto3D p0 { 0.0, 0.0, 0.0 };
-
-    const double wJanela = 10.0;
-    const double hJanela = 10.0;
-    const double dJanela = 12.0;
-    const uint16_t wCanvas = 500u;
-    const uint16_t hCanvas = 500u;
+    const TPonto3D p0 { 0.0, 0.0, 0.0 }; // usaremos como olho do pintor (origem dos raios)
+    const double wJanela = 10.0;         // dimensoes da janela, na unidade do mundo relevante
+    const double hJanela = 10.0;         // dimensoes da janela, na unidade do mundo relevante
+    const double dJanela = 12.0;         // dimensoes da janela, na unidade do mundo relevante
+    const uint16_t wCanvas = 500u;       // dimensoes da viewport, em pixels
+    const uint16_t hCanvas = 500u;       // dimensoes da viewport, em pixels
     const TJanela janela { { 0.0, 0.0, -dJanela }, wJanela, hJanela, wCanvas, hCanvas };
 
     // Nossa janela e sistema de coordenadas ficara algo mais ou menos assim:
@@ -508,12 +507,15 @@ int main()
     // |        |        |
     // |        |        |
     // |       (.)------>| x
-    // |     z   (0,0,0) |
+    // |     z           |
     // |                 |
     // |_________________|
     // 
     // Por obvio, nossos objetos devem ficar em coordenadas Z negativas
-    // para que possam ser observados
+    // para que possam ser observados. Em particular, devem ficar alem do
+    // plano de projecao, no qual a janela esta contida. Adotaremos como
+    // olho do observador a origem do sistema (0, 0, 0), um pouco antes
+    // do plano de projecao
 
     TArquivoPPM arq("teste.ppm", janela.LarguraCanvas(), janela.AlturaCanvas());
 
