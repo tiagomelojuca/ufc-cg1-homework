@@ -91,9 +91,7 @@ namespace ResTbl
 {
     static constexpr const char* TEX_MADEIRA  = "recursos/Misc/tex.bmp";
     static constexpr const char* OBJ_GOLDFISH = "recursos/Goldfish/Goldfish_01.obj";
-    static constexpr const char* MTL_GOLDFISH = "recursos/Goldfish/Goldfish_01.mtl";
     static constexpr const char* OBJ_SPYRO    = "recursos/Spyro/Spyro.obj";
-    static constexpr const char* MTL_SPYRO    = "recursos/Spyro/Spyro.mtl";
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -2519,47 +2517,54 @@ private:
     };
 
 public:
-    TLeitorMalha3D(const std::string& obj, const std::string& mtl)
-        : _caminhoObj(obj),
-          _caminhoMtl(mtl),
-          _isObj(obj),
-          _isMtl(mtl)
-    {
-    }
+    TLeitorMalha3D(const std::string& obj) : _caminhoObj(obj), _isObj(obj) {}
 
-    static void Carrega(const std::string& obj, const std::string& mtl, TMalha3D& malha)
+    static void Carrega(const std::string& obj, TMalha3D& malha)
     {
-        TLeitorMalha3D leitorMalha(obj, mtl);
+        TLeitorMalha3D leitorMalha(obj);
         leitorMalha.Parse();
         leitorMalha.Popula(malha);
     }
 
-    void Parse()
+    bool Parse()
     {
-        if (!_parseado)
+        if (_parseado)
         {
-            if (_isMtl.is_open())
-            {
-                std::string linha;
-                while (std::getline(_isMtl, linha))
-                {
-                    NormalizaLinha(linha);
-                    ProcessaLinhaMTL(linha);
-                }
-            }
-
-            if (_isObj.is_open())
-            {
-                std::string linha;
-                while (std::getline(_isObj, linha))
-                {
-                    NormalizaLinha(linha);
-                    ProcessaLinhaOBJ(linha);
-                }
-            }
-
-            _parseado = true;
+            return _ok;
         }
+
+        if (_isObj.is_open() && PreProcessaOBJ())
+        {
+            _isMtl.open(_caminhoMtl);
+        }
+        else
+        {
+            _ok = false;
+        }
+
+        if (_isMtl.is_open())
+        {
+            ProcessaMTL();
+        }
+        else
+        {
+            _ok = false;
+        }
+
+        if (_ok)
+        {
+            _isObj.seekg(0, std::ios_base::beg);
+            ProcessaOBJ();
+        }
+
+        _parseado = true;
+        
+        return _ok;
+    }
+
+    bool Ok() const
+    {
+        return _ok;
     }
 
     void Popula(TMalha3D& malha) const
@@ -2633,6 +2638,50 @@ public:
     }
 
 private:
+    bool PreProcessaOBJ()
+    {
+        bool achouMtlAssociado = false;
+
+        std::string linha;
+        while (std::getline(_isObj, linha))
+        {
+            NormalizaLinha(linha);
+
+            if (IgnoraLinha(linha))
+            {
+                // NoOp
+            }
+            else if (IniciaComPalavraChave(linha, "mtllib"))
+            {
+                _caminhoMtl = CaminhoArquivoNoMesmoDiretorio(LeString(linha));
+                achouMtlAssociado = true;
+                break;
+            }
+        }
+
+        return achouMtlAssociado;
+    }
+
+    void ProcessaMTL()
+    {
+        std::string linha;
+        while (std::getline(_isMtl, linha))
+        {
+            NormalizaLinha(linha);
+            ProcessaLinhaMTL(linha);
+        }
+    }
+
+    void ProcessaOBJ()
+    {
+        std::string linha;
+        while (std::getline(_isObj, linha))
+        {
+            NormalizaLinha(linha);
+            ProcessaLinhaOBJ(linha);
+        }
+    }
+
     void NormalizaLinha(std::string& linha) const
     {
         size_t inicio = linha.find_first_not_of(" \t");
@@ -2644,235 +2693,103 @@ private:
 
     void ProcessaLinhaMTL(const std::string& linha)
     {
-        if (linha.empty() || linha[0] == '#')
+        if (IgnoraLinha(linha)) // Linha em branco ou comentario
         {
             // NoOp
         }
-        else if (IniciaComPalavraChave(linha, "newmtl"))
+        else if (IniciaComPalavraChave(linha, "newmtl")) // Nome Material
         {
-            ProcessaNomeMaterial(linha);
+            _materialCorrente = LeString(linha);
         }
-        else if (IniciaComPalavraChave(linha, "Ns"))
+        else if (IniciaComPalavraChave(linha, "Ns")) // Brilho
         {
-            ProcessaBrilho(linha);
+            TMaterial& materialCorrente = MaterialCorrente();
+
+            const double m = LeEscalar(linha);
+            materialCorrente.M(m);
         }
-        else if (IniciaComPalavraChave(linha, "Ka"))
+        else if (IniciaComPalavraChave(linha, "Ka")) // Fator Luz Ambiente
         {
-            ProcessaFatorLuzAmbiente(linha);
+            TMaterial& materialCorrente = MaterialCorrente();
+
+            const TVetor3D ka = LeVetor3D(linha);
+            materialCorrente.KaR(ka.X());
+            materialCorrente.KaG(ka.Y());
+            materialCorrente.KaB(ka.Z());
         }
-        else if (IniciaComPalavraChave(linha, "Kd"))
+        else if (IniciaComPalavraChave(linha, "Kd")) // Fator Luz Difusa
         {
-            ProcessaFatorLuzDifusa(linha);
+            TMaterial& materialCorrente = MaterialCorrente();
+
+            const TVetor3D kd = LeVetor3D(linha);
+            materialCorrente.KdR(kd.X());
+            materialCorrente.KdG(kd.Y());
+            materialCorrente.KdB(kd.Z());
         }
-        else if (IniciaComPalavraChave(linha, "Ks"))
+        else if (IniciaComPalavraChave(linha, "Ks")) // Fator Luz Especular
         {
-            ProcessaFatorLuzEspecular(linha);
+            TMaterial& materialCorrente = MaterialCorrente();
+
+            const TVetor3D ke = LeVetor3D(linha);
+            materialCorrente.KeR(ke.X());
+            materialCorrente.KeG(ke.Y());
+            materialCorrente.KeB(ke.Z());
         }
-        else if (IniciaComPalavraChave(linha, "Ke"))
+        else if (IniciaComPalavraChave(linha, "Ke")) // Fator Luz Emissao
         {
-            ProcessaFatorLuzEmissao(linha);
+            // const TVetor3D k = LeVetor3D(linha);
         }
-        else if (IniciaComPalavraChave(linha, "Ni"))
+        else if (IniciaComPalavraChave(linha, "Ni")) // Densidade Optica
         {
-            ProcessaDensidadeOptica(linha);
+            // const double ni = LeEscalar(linha);
         }
-        else if (IniciaComPalavraChave(linha, "d"))
+        else if (IniciaComPalavraChave(linha, "d")) // Transparencia
         {
-            ProcessaTransparencia(linha);
+            // const double d = LeEscalar(linha);
         }
-        else if (IniciaComPalavraChave(linha, "illum"))
+        else if (IniciaComPalavraChave(linha, "illum")) // Modelo Iluminacao
         {
-            ProcessaModeloIluminacao(linha);
+            // const int illum = LeInteiro(linha);
         }
-        else if (IniciaComPalavraChave(linha, "map_Kd"))
+        else if (IniciaComPalavraChave(linha, "map_Kd")) // Mapa Textura
         {
-            ProcessaMapaTextura(linha);
+            TMaterial& materialCorrente = MaterialCorrente();
+
+            const std::string mapKd = LeString(linha);
+            materialCorrente.CarregaTextura(CaminhoArquivoNoMesmoDiretorio(mapKd));
         }
     }
 
     void ProcessaLinhaOBJ(const std::string& linha)
     {
-        if (linha.empty() || linha[0] == '#')
+        if (IgnoraLinha(linha)) // Linha em branco ou comentario
         {
             // NoOp
         }
-        else if (IniciaComPalavraChave(linha, "usemtl"))
+        else if (IniciaComPalavraChave(linha, "mtllib")) // Nome Arquivo Materiais
         {
-            ProcessaNomeMaterial(linha);
+            // NoOp, ja foi tratado antes para carregar o MTL
         }
-        else if (IniciaComPalavraChave(linha, "v"))
+        else if (IniciaComPalavraChave(linha, "usemtl")) // Nome Material
         {
-            ProcessaVerticeGeometrico(linha);
+            _materialCorrente = LeString(linha);
         }
-        else if (IniciaComPalavraChave(linha, "vt"))
+        else if (IniciaComPalavraChave(linha, "v")) // Vertice Geometrico
         {
-            ProcessaCoordenadasTexturaVertice(linha);
+            _verticesGeometricos.push_back(LeVetor3D(linha));
         }
-        else if (IniciaComPalavraChave(linha, "vn"))
+        else if (IniciaComPalavraChave(linha, "vt")) // Coordenadas Textura Vertice
         {
-            ProcessaNormalVertice(linha);
+            _coordsTexturaVertices.push_back(LeVetor2D(linha));
         }
-        else if (IniciaComPalavraChave(linha, "f"))
+        else if (IniciaComPalavraChave(linha, "vn")) // Normal Vertice
+        {
+            _normaisVertices.push_back(LeVetor3D(linha));
+        }
+        else if (IniciaComPalavraChave(linha, "f")) // Face
         {
             ProcessaFace(linha);
         }
-    }
-
-    void ProcessaNomeMaterial(const std::string& linha)
-    {
-        std::string token;
-        std::string nomeMaterial;
-
-        std::istringstream iss(linha);
-        iss >> token >> nomeMaterial;
-
-        _materialCorrente = nomeMaterial;
-    }
-
-    void ProcessaBrilho(const std::string& linha)
-    {
-        std::string token;
-        double ns;
-
-        std::istringstream iss(linha);
-        iss >> token >> ns;
-
-        MaterialCorrente().M(ns);
-    }
-
-    void ProcessaFatorLuzAmbiente(const std::string& linha)
-    {
-        std::string token;
-        double x, y, z;
-
-        std::istringstream iss(linha);
-        iss >> token >> x >> y >> z;
-
-        TMaterial& materialCorrente = MaterialCorrente();
-        materialCorrente.KaR(x);
-        materialCorrente.KaG(y);
-        materialCorrente.KaB(z);
-    }
-
-    void ProcessaFatorLuzDifusa(const std::string& linha)
-    {
-        std::string token;
-        double x, y, z;
-
-        std::istringstream iss(linha);
-        iss >> token >> x >> y >> z;
-
-        TMaterial& materialCorrente = MaterialCorrente();
-        materialCorrente.KdR(x);
-        materialCorrente.KdG(y);
-        materialCorrente.KdB(z);
-    }
-
-    void ProcessaFatorLuzEspecular(const std::string& linha)
-    {
-        std::string token;
-        double x, y, z;
-
-        std::istringstream iss(linha);
-        iss >> token >> x >> y >> z;
-
-        TMaterial& materialCorrente = MaterialCorrente();
-        materialCorrente.KeR(x);
-        materialCorrente.KeG(y);
-        materialCorrente.KeB(z);
-    }
-
-    void ProcessaFatorLuzEmissao(const std::string& linha)
-    {
-        std::string token;
-        double x, y, z;
-
-        std::istringstream iss(linha);
-        iss >> token >> x >> y >> z;
-    }
-
-    void ProcessaDensidadeOptica(const std::string& linha)
-    {
-        std::string token;
-        double ni;
-
-        std::istringstream iss(linha);
-        iss >> token >> ni;
-    }
-
-    void ProcessaTransparencia(const std::string& linha)
-    {
-        std::string token;
-        double d;
-
-        std::istringstream iss(linha);
-        iss >> token >> d;
-    }
-
-    void ProcessaModeloIluminacao(const std::string& linha)
-    {
-        std::string token;
-        int illum;
-
-        std::istringstream iss(linha);
-        iss >> token >> illum;
-    }
-
-    void ProcessaMapaTextura(const std::string& linha)
-    {
-        std::string token;
-        std::string mapKd;
-
-        std::istringstream iss(linha);
-        iss >> token >> mapKd;
-
-        std::string caminhoMapaTextura;
-
-        const size_t posBarra = _caminhoMtl.find_last_of("/\\");
-        if (posBarra == std::string::npos)
-        {
-            caminhoMapaTextura = mapKd;
-        }
-        else
-        {
-            const std::string diretorio = _caminhoMtl.substr(0, posBarra + 1);
-            caminhoMapaTextura = diretorio + mapKd;
-        }
-
-        MaterialCorrente().CarregaTextura(caminhoMapaTextura);
-    }
-
-    void ProcessaVerticeGeometrico(const std::string& linha)
-    {
-        std::string token;
-        double x, y, z;
-
-        std::istringstream iss(linha);
-        iss >> token >> x >> y >> z;
-
-        _verticesGeometricos.push_back(TPonto3D { x, y, z });
-    }
-
-    void ProcessaCoordenadasTexturaVertice(const std::string& linha)
-    {
-        std::string token;
-        double u, v;
-
-        std::istringstream iss(linha);
-        iss >> token >> u >> v;
-
-        _coordsTexturaVertices.push_back(TPonto3D { u, v, 0.0 });
-    }
-
-    void ProcessaNormalVertice(const std::string& linha)
-    {
-        std::string token;
-        double x, y, z;
-
-        std::istringstream iss(linha);
-        iss >> token >> x >> y >> z;
-
-        _normaisVertices.push_back(TVetor3D { x, y, z });
     }
 
     void ProcessaFace(const std::string& linha)
@@ -2923,6 +2840,66 @@ private:
         _faces.push_back(face);
     }
 
+    std::string LeString(const std::string& linha) const
+    {
+        std::string token;
+        std::string str;
+
+        std::istringstream iss(linha);
+        iss >> token >> str;
+
+        return str;
+    }
+
+    int LeInteiro(const std::string& linha) const
+    {
+        std::string token;
+        int n;
+
+        std::istringstream iss(linha);
+        iss >> token >> n;
+
+        return n;
+    }
+
+    double LeEscalar(const std::string& linha) const
+    {
+        std::string token;
+        double n;
+
+        std::istringstream iss(linha);
+        iss >> token >> n;
+
+        return n;
+    }
+
+    TVetor3D LeVetor2D(const std::string& linha) const
+    {
+        std::string token;
+        double x, y;
+
+        std::istringstream iss(linha);
+        iss >> token >> x >> y;
+
+        return { x, y, 0.0 };
+    }
+
+    TVetor3D LeVetor3D(const std::string& linha) const
+    {
+        std::string token;
+        double x, y, z;
+
+        std::istringstream iss(linha);
+        iss >> token >> x >> y >> z;
+
+        return { x, y, z };
+    }
+
+    bool IgnoraLinha(const std::string& linha)
+    {
+        return linha.empty() || linha[0] == '#';
+    }
+
     bool IniciaComPalavraChave(const std::string& linha, const std::string& token)
     {
         return linha.rfind(token + " ", 0) == 0;
@@ -2933,11 +2910,30 @@ private:
         return _materiais[_materialCorrente];
     }
 
+    std::string CaminhoArquivoNoMesmoDiretorio(const std::string& arq) const
+    {
+        std::string caminhoArq;
+
+        const size_t posBarra = _caminhoObj.find_last_of("/\\");
+        if (posBarra == std::string::npos)
+        {
+            caminhoArq = arq;
+        }
+        else
+        {
+            const std::string diretorio = _caminhoObj.substr(0, posBarra + 1);
+            caminhoArq = diretorio + arq;
+        }
+
+        return caminhoArq;
+    }
+
     std::string _caminhoObj;
     std::string _caminhoMtl;
     std::ifstream _isObj;
     std::ifstream _isMtl;
     bool _parseado = false;
+    bool _ok = true;
 
     std::unordered_map<std::string, TMaterial> _materiais;
     std::string _materialCorrente;
@@ -3369,13 +3365,9 @@ TCubo FabricaCubo()
 
 TMalha3D FabricaMalha()
 {
-    // TMaterial material = FabricaMaterialHomogeneo({ 1.0, 0.078, 0.576 }, 10.0);
-    // material.CarregaTextura(ResTbl::TEX_SPYRO1);
-
     TMalha3D malha;
-    TLeitorMalha3D::Carrega(ResTbl::OBJ_SPYRO, ResTbl::MTL_SPYRO, malha);
+    TLeitorMalha3D::Carrega(ResTbl::OBJ_SPYRO, malha);
     malha.Rotulo("MALHA_1");
-    // malha.Material(material);
     malha.Traslada({ 0.0, 0.0, -10.0 });
 
     return malha;
