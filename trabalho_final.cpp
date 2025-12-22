@@ -70,6 +70,7 @@
 #include <locale>
 #include <codecvt>
 #include <iostream>
+#include <unordered_map>
 
 #ifndef UNICODE
 #define UNICODE
@@ -77,6 +78,8 @@
 #include <windows.h>
 #include <windowsx.h>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "dependencias/stb_image.h"
 #include "dependencias/BitmapPlusPlus.hpp"
 
 // ------------------------------------------------------------------------------------------------
@@ -88,7 +91,9 @@ namespace ResTbl
 {
     static constexpr const char* TEX_MADEIRA  = "recursos/Misc/tex.bmp";
     static constexpr const char* OBJ_GOLDFISH = "recursos/Goldfish/Goldfish_01.obj";
+    static constexpr const char* MTL_GOLDFISH = "recursos/Goldfish/Goldfish_01.mtl";
     static constexpr const char* OBJ_SPYRO    = "recursos/Spyro/Spyro.obj";
+    static constexpr const char* MTL_SPYRO    = "recursos/Spyro/Spyro.mtl";
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -1041,6 +1046,7 @@ public:
     {
         _k = outra._k;
         _pixels = new TImagem(*outra._pixels);
+        _caminho = outra._caminho;
     }
 
     TTextura(TTextura&& outra)
@@ -1048,6 +1054,7 @@ public:
         _k = outra._k;
         _pixels = outra._pixels;
         outra._pixels = nullptr;
+        _caminho = outra._caminho;
     }
 
     TTextura& operator=(const TTextura& outra)
@@ -1056,6 +1063,7 @@ public:
         {
             _k = outra._k;
             _pixels = new TImagem(*outra._pixels);
+            _caminho = outra._caminho;
         }
 
         return *this;
@@ -1068,6 +1076,7 @@ public:
             _k = outra._k;
             _pixels = outra._pixels;
             outra._pixels = nullptr;
+            _caminho = outra._caminho;
         }
 
         return *this;
@@ -1080,22 +1089,23 @@ public:
 
     void Carrega(const std::string& caminho)
     {
-        bmp::Bitmap img;
-        img.load(caminho);
+        _caminho = caminho;
+        auto ExtensaoEh = [this](const std::string& ext) {
+            return _caminho.size() >= ext.size() &&
+                   _caminho.compare(_caminho.size() - ext.size(), ext.size(), ext) == 0;
+        };
 
-        const uint16_t w = static_cast<uint16_t>(img.width());
-        const uint16_t h = static_cast<uint16_t>(img.height());
-
-        delete _pixels;
-        _pixels = new TImagem(h, w);
-
-        for (std::size_t x = 0; x < w; x++)
+        if (ExtensaoEh(".bmp"))
         {
-            for (std::size_t y = 0; y < h; y++)
-            {
-                const bmp::Pixel& pixel = img.get(x, y);
-                (*_pixels)[y + 1][x + 1] = { pixel.r, pixel.g, pixel.b };
-            }
+            CarregaBMP(_caminho);
+        }
+        else if (ExtensaoEh(".png"))
+        {
+            CarregaPNG(_caminho);
+        }
+        else
+        {
+            _caminho = "";
         }
     }
 
@@ -1122,9 +1132,62 @@ public:
         _k = k;
     }
 
+    const std::string& Caminho() const
+    {
+        return _caminho;
+    }
+
 private:
+    void CarregaBMP(const std::string& caminho)
+    {
+        bmp::Bitmap img;
+        img.load(caminho);
+
+        const uint16_t w = static_cast<uint16_t>(img.width());
+        const uint16_t h = static_cast<uint16_t>(img.height());
+
+        delete _pixels;
+        _pixels = new TImagem(h, w);
+
+        for (std::size_t x = 0; x < w; x++)
+        {
+            for (std::size_t y = 0; y < h; y++)
+            {
+                const bmp::Pixel& pixel = img.get(x, y);
+                (*_pixels)[y + 1][x + 1] = { pixel.r, pixel.g, pixel.b };
+            }
+        }
+    }
+
+    void CarregaPNG(const std::string& caminho)
+    {
+        int w, h, canais;
+
+        unsigned char* data = stbi_load(caminho.c_str(), &w, &h, &canais, 3);
+
+        delete _pixels;
+        _pixels = new TImagem(h, w);
+
+        for (int y = 0; y < h; y++)
+        {
+            for (int x = 0; x < w; x++)
+            {
+                int idx = (y * w + x) * 3;
+                unsigned char r = data[idx];
+                unsigned char g = data[idx + 1];
+                unsigned char b = data[idx + 2];
+
+                (*_pixels)[y + 1][x + 1] = { r, g, b };
+            }
+        }
+
+        stbi_image_free(data);
+    }
+
     double _k = 1.0;
     TImagem* _pixels = nullptr;
+
+    std::string _caminho;
 };
 
 // ------------------------------------------------------------------------------------------------
@@ -1295,6 +1358,35 @@ public:
         _tex->Carrega(caminho);
     }
 
+    std::string ToString() const
+    {
+        std::string caminhoTextura;
+        if (_tex != nullptr)
+        {
+            caminhoTextura += "\"";
+            caminhoTextura += _tex->Caminho();
+            caminhoTextura += "\"";
+        }
+        else
+        {
+            caminhoTextura = "NULL";
+        }
+
+        std::stringstream ss;
+
+        ss << "TMaterial { kd = { "
+           << _kdR << ", " << _kdG << ", " << _kdB
+           << " }, ke = { "
+           << _keR << ", " << _keG << ", " << _keB
+           << " }, ka = { "
+           << _kaR << ", " << _kaG << ", " << _kaB
+           << " }, m = " << _m
+           << ", tex = " << caminhoTextura
+           << " }";
+
+        return ss.str();
+    }
+
 private:
     void CopiaDadosPrimitivos(const TMaterial& outro)
     {
@@ -1317,6 +1409,12 @@ private:
     {
         if (_tex != nullptr)
         {
+            Tracer::Trace(ToString().c_str());
+
+            std::stringstream ss;
+            ss << "    uv = { " << u << ", " << v << "}";
+            Tracer::Trace(ss.str().c_str());
+
             auto x = static_cast<uint16_t>(u * (_tex->Largura() - 1));
             auto y = static_cast<uint16_t>((1.0 - v) * (_tex->Altura() - 1));
 
@@ -1393,7 +1491,7 @@ public:
     virtual IEntidade3D* Copia() const = 0;
     virtual std::string Rotulo() const = 0;
     virtual TMaterial Material(const TRaio3D& raio) const = 0;
-    virtual std::pair<double, double> CoordenadasUV(const TPonto3D& p) const = 0;
+    virtual std::pair<double, double> CoordenadasUV(const TPonto3D& p, const TRaio3D& raio) const = 0;
 
     virtual TVetor3D Normal(const TPonto3D& p, const TRaio3D& raio) const = 0;
     virtual std::vector<double> Intersecoes(const TRaio3D& raio) const = 0;
@@ -1483,6 +1581,18 @@ public:
     {
         return _rotulo;
     }
+    std::string Rotulo(const TRaio3D& raio) const
+    {
+        std::string rotulo;
+
+        const IEntidade3D* entidade = EntidadeInterceptada(raio);
+        if (entidade != nullptr)
+        {
+            rotulo = entidade->Rotulo();
+        }
+
+        return rotulo;
+    }
     void Rotulo(const std::string& rotulo)
     {
         _rotulo = rotulo;
@@ -1501,9 +1611,17 @@ public:
         return material;
     }
 
-    std::pair<double, double> CoordenadasUV(const TPonto3D& p) const override
+    std::pair<double, double> CoordenadasUV(const TPonto3D& p, const TRaio3D& raio) const override
     {
-        return std::pair<double, double>(0.0, 0.0);
+        std::pair<double, double> uv;
+
+        const IEntidade3D* entidade = EntidadeInterceptada(raio);
+        if (entidade != nullptr)
+        {
+            uv = entidade->CoordenadasUV(p, raio);
+        }
+
+        return uv;
     }
 
     TVetor3D Normal(const TPonto3D& p, const TRaio3D& raio) const override
@@ -1595,7 +1713,7 @@ public:
         _material = material;
     }
 
-    std::pair<double, double> CoordenadasUV(const TPonto3D& p) const override
+    std::pair<double, double> CoordenadasUV(const TPonto3D& p, const TRaio3D& raio) const override
     {
         double u = 0.0;
         double v = 0.0;
@@ -1690,6 +1808,20 @@ private:
 
 class TSuperficieTriangular : public TPlano
 {
+private:
+    struct TBaricentros
+    {
+        double c1;
+        double c2;
+        double c3;
+
+        bool MesmoSinal() const
+        {
+            return c1 >= 0.0 && c2 >= 0.0 && c3 >= 0.0 ||
+                   c1 <= 0.0 && c2 <= 0.0 && c3 <= 0.0;
+        }
+    };
+
 public:
     TSuperficieTriangular() = delete;
     TSuperficieTriangular(const TPonto3D& p1, const TPonto3D& p2, const TPonto3D& p3)
@@ -1701,6 +1833,29 @@ public:
     IEntidade3D* Copia() const override
     {
         return new TSuperficieTriangular(*this);
+    }
+
+    std::pair<double, double> CoordenadasUV(const TPonto3D& p, const TRaio3D& raio) const override
+    {
+        const TBaricentros b = CalcularBaricentricos(p);
+
+        const double u = b.c1 * _uv1.first  + b.c2 * _uv2.first  + b.c3 * _uv3.first;
+        const double v = b.c1 * _uv1.second + b.c2 * _uv2.second + b.c3 * _uv3.second;
+
+        return { u, v };
+    }
+
+    void CoordenadasUV1(const std::pair<double, double>& uv)
+    {
+        _uv1 = uv;
+    }
+    void CoordenadasUV2(const std::pair<double, double>& uv)
+    {
+        _uv2 = uv;
+    }
+    void CoordenadasUV3(const std::pair<double, double>& uv)
+    {
+        _uv3 = uv;
     }
 
     const TPonto3D& PontoReferencia() const
@@ -1716,16 +1871,8 @@ public:
         for (double intersecaoPlano : intersecoesPlano)
         {
             const TPonto3D pI = raio.Ponto(intersecaoPlano);
-
-            const TVetor3D s1 = _p1 - pI;
-            const TVetor3D s2 = _p2 - pI;
-            const TVetor3D s3 = _p3 - pI;
-
-            const double normaN = _N.Norma();
-            const double c1 = FuncoesGeometricas::ProdutoMisto(_n, s3, s1) / normaN;
-            const double c2 = FuncoesGeometricas::ProdutoMisto(_n, s1, s2) / normaN;
-            const double c3 = 1.0 - c1 - c2;
-            const bool intersecaoDentro = c1 > 0.0 && c2 > 0.0 && c3 > 0.0;
+            const TBaricentros baricentros = CalcularBaricentricos(pI);
+            const bool intersecaoDentro = baricentros.MesmoSinal();
 
             if (intersecaoDentro)
             {
@@ -1753,9 +1900,27 @@ private:
         _n = _N.Normalizado();
     }
 
+    TBaricentros CalcularBaricentricos(const TPonto3D& p) const
+    {
+        const TVetor3D s1 = _p1 - p;
+        const TVetor3D s2 = _p2 - p;
+        const TVetor3D s3 = _p3 - p;
+
+        const double normaN = _N.Norma();
+        const double c1 = FuncoesGeometricas::ProdutoMisto(_n, s3, s1) / normaN;
+        const double c2 = FuncoesGeometricas::ProdutoMisto(_n, s1, s2) / normaN;
+        const double c3 = 1.0 - c1 - c2;
+
+        return { c1, c2, c3 };
+    }
+
     TPonto3D _p1;
     TPonto3D _p2;
     TPonto3D _p3;
+
+    std::pair<double, double> _uv1;
+    std::pair<double, double> _uv2;
+    std::pair<double, double> _uv3;
 
     TVetor3D _N;
 };
@@ -1890,7 +2055,6 @@ public:
 
     TMalha3D(const TMalha3D& outra) : TEntidadeComposta(outra)
     {
-        _material = outra._material;
     }
 
     IEntidade3D* Copia() const override
@@ -1898,21 +2062,23 @@ public:
         return new TMalha3D(*this);
     }
 
-    void Material(const TMaterial& material)
-    {
-        _material = material;
+    // void Material(const TMaterial& material)
+    // {
+    //     // _material = material;
 
-        for (std::unique_ptr<IEntidade3D>& entidade : _entidades)
-        {
-            auto& triangulo = static_cast<TSuperficieTriangular&>(*entidade.get());
-            triangulo.Material(_material);
-        }
-    }
+    //     // for (std::unique_ptr<IEntidade3D>& entidade : _entidades)
+    //     // {
+    //     //     auto& triangulo = static_cast<TSuperficieTriangular&>(*entidade.get());
+    //     //     triangulo.Material(_material);
+    //     // }
+    // }
 
     void Adiciona(const TSuperficieTriangular& triangulo)
     {
         TEntidadeComposta::Insere(triangulo);
-        static_cast<TSuperficieTriangular&>(*_entidades.back().get()).Material(_material);
+        // auto& trianguloInserido = static_cast<TSuperficieTriangular&>(*_entidades.back().get());
+
+        // trianguloInserido.Material(_material);
     }
 
     void Traslada(const TPonto3D& t)
@@ -1923,9 +2089,6 @@ public:
             triangulo.Traslada(t);
         }
     }
-
-private:
-    TMaterial _material;
 };
 
 // ------------------------------------------------------------------------------------------------
@@ -1959,7 +2122,7 @@ public:
         _material = material;
     }
 
-    std::pair<double, double> CoordenadasUV(const TPonto3D& p) const override
+    std::pair<double, double> CoordenadasUV(const TPonto3D& p, const TRaio3D& raio) const override
     {
         return std::pair<double, double>(0.0, 0.0);
     }
@@ -2033,7 +2196,7 @@ public:
         _material = material;
     }
 
-    std::pair<double, double> CoordenadasUV(const TPonto3D& p) const override
+    std::pair<double, double> CoordenadasUV(const TPonto3D& p, const TRaio3D& raio) const override
     {
         return std::pair<double, double>(0.0, 0.0);
     }
@@ -2204,7 +2367,7 @@ public:
         _material = material;
     }
 
-    std::pair<double, double> CoordenadasUV(const TPonto3D& p) const override
+    std::pair<double, double> CoordenadasUV(const TPonto3D& p, const TRaio3D& raio) const override
     {
         return std::pair<double, double>(0.0, 0.0);
     }
@@ -2362,26 +2525,47 @@ private:
     struct TFace
     {
         std::vector<TVertice> vertices;
+        TMaterial* material = nullptr;
     };
 
 public:
-    TLeitorMalha3D(const std::string& obj) : _is(obj) {}
-
-    static void Carrega(const std::string& obj, TMalha3D& malha)
+    TLeitorMalha3D(const std::string& obj, const std::string& mtl)
+        : _caminhoObj(obj),
+          _caminhoMtl(mtl),
+          _isObj(obj),
+          _isMtl(mtl)
     {
-        TLeitorMalha3D leitorMalha(obj);
+    }
+
+    static void Carrega(const std::string& obj, const std::string& mtl, TMalha3D& malha)
+    {
+        TLeitorMalha3D leitorMalha(obj, mtl);
         leitorMalha.Parse();
         leitorMalha.Popula(malha);
     }
 
     void Parse()
     {
-        if (!_parseado && _is.is_open())
+        if (!_parseado)
         {
-            std::string linha;
-            while (std::getline(_is, linha))
+            if (_isMtl.is_open())
             {
-                Processa(linha);
+                std::string linha;
+                while (std::getline(_isMtl, linha))
+                {
+                    NormalizaLinha(linha);
+                    ProcessaLinhaMTL(linha);
+                }
+            }
+
+            if (_isObj.is_open())
+            {
+                std::string linha;
+                while (std::getline(_isObj, linha))
+                {
+                    NormalizaLinha(linha);
+                    ProcessaLinhaOBJ(linha);
+                }
             }
 
             _parseado = true;
@@ -2406,6 +2590,7 @@ public:
         // T2 = (v0, v2, v3)
         // T3 = (v0, v3, v4)
 
+        int numeroFace = 1;
         for (const TFace& face : _faces)
         {
             const std::vector<TVertice>& verticesFace = face.vertices;
@@ -2426,17 +2611,108 @@ public:
                 const TPonto3D& p2 = _verticesGeometricos[v2.v];
                 const TPonto3D& p3 = _verticesGeometricos[v3.v];
 
-                malha.Adiciona(TSuperficieTriangular { p1, p2, p3 });
+                TSuperficieTriangular t { p1, p2, p3 };
+                t.Rotulo(std::to_string(numeroFace++));
+
+                if (v1.vt != -1)
+                {
+                    const TPonto3D& uv1 = _coordsTexturaVertices[v1.vt];
+                    t.CoordenadasUV1({ uv1.X(), uv1.Y() });
+                }
+
+                if (v2.vt != -1)
+                {
+                    const TPonto3D& uv2 = _coordsTexturaVertices[v2.vt];
+                    t.CoordenadasUV2({ uv2.X(), uv2.Y() });
+                }
+
+                if (v3.vt != -1)
+                {
+                    const TPonto3D& uv3 = _coordsTexturaVertices[v3.vt];
+                    t.CoordenadasUV3({ uv3.X(), uv3.Y() });
+                }
+
+                if (face.material != nullptr)
+                {
+                    std::stringstream ss;
+                    ss << "Face = " << t.Rotulo();
+                    Tracer::Trace(ss.str().c_str());
+                    t.Material(*face.material);
+                    Tracer::Trace(face.material->ToString().c_str());
+                }
+
+                malha.Adiciona(t);
             }
         }
     }
 
 private:
-    void Processa(const std::string& linha)
+    void NormalizaLinha(std::string& linha) const
+    {
+        size_t inicio = linha.find_first_not_of(" \t");
+        if (inicio != std::string::npos)
+        {
+            linha = linha.substr(inicio);
+        }
+    }
+
+    void ProcessaLinhaMTL(const std::string& linha)
     {
         if (linha.empty() || linha[0] == '#')
         {
             // NoOp
+        }
+        else if (IniciaComPalavraChave(linha, "newmtl"))
+        {
+            ProcessaNomeMaterial(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "Ns"))
+        {
+            ProcessaBrilho(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "Ka"))
+        {
+            ProcessaFatorLuzAmbiente(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "Kd"))
+        {
+            ProcessaFatorLuzDifusa(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "Ks"))
+        {
+            ProcessaFatorLuzEspecular(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "Ke"))
+        {
+            ProcessaFatorLuzEmissao(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "Ni"))
+        {
+            ProcessaDensidadeOptica(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "d"))
+        {
+            ProcessaTransparencia(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "illum"))
+        {
+            ProcessaModeloIluminacao(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "map_Kd"))
+        {
+            ProcessaMapaTextura(linha);
+        }
+    }
+
+    void ProcessaLinhaOBJ(const std::string& linha)
+    {
+        if (linha.empty() || linha[0] == '#')
+        {
+            // NoOp
+        }
+        else if (IniciaComPalavraChave(linha, "usemtl"))
+        {
+            ProcessaNomeMaterial(linha);
         }
         else if (IniciaComPalavraChave(linha, "v"))
         {
@@ -2454,6 +2730,130 @@ private:
         {
             ProcessaFace(linha);
         }
+    }
+
+    void ProcessaNomeMaterial(const std::string& linha)
+    {
+        std::string token;
+        std::string nomeMaterial;
+
+        std::istringstream iss(linha);
+        iss >> token >> nomeMaterial;
+
+        _materialCorrente = nomeMaterial;
+    }
+
+    void ProcessaBrilho(const std::string& linha)
+    {
+        std::string token;
+        double ns;
+
+        std::istringstream iss(linha);
+        iss >> token >> ns;
+
+        MaterialCorrente().M(ns);
+    }
+
+    void ProcessaFatorLuzAmbiente(const std::string& linha)
+    {
+        std::string token;
+        double x, y, z;
+
+        std::istringstream iss(linha);
+        iss >> token >> x >> y >> z;
+
+        TMaterial& materialCorrente = MaterialCorrente();
+        materialCorrente.KaR(x);
+        materialCorrente.KaG(y);
+        materialCorrente.KaB(z);
+    }
+
+    void ProcessaFatorLuzDifusa(const std::string& linha)
+    {
+        std::string token;
+        double x, y, z;
+
+        std::istringstream iss(linha);
+        iss >> token >> x >> y >> z;
+
+        TMaterial& materialCorrente = MaterialCorrente();
+        materialCorrente.KdR(x);
+        materialCorrente.KdG(y);
+        materialCorrente.KdB(z);
+    }
+
+    void ProcessaFatorLuzEspecular(const std::string& linha)
+    {
+        std::string token;
+        double x, y, z;
+
+        std::istringstream iss(linha);
+        iss >> token >> x >> y >> z;
+
+        TMaterial& materialCorrente = MaterialCorrente();
+        materialCorrente.KeR(x);
+        materialCorrente.KeG(y);
+        materialCorrente.KeB(z);
+    }
+
+    void ProcessaFatorLuzEmissao(const std::string& linha)
+    {
+        std::string token;
+        double x, y, z;
+
+        std::istringstream iss(linha);
+        iss >> token >> x >> y >> z;
+    }
+
+    void ProcessaDensidadeOptica(const std::string& linha)
+    {
+        std::string token;
+        double ni;
+
+        std::istringstream iss(linha);
+        iss >> token >> ni;
+    }
+
+    void ProcessaTransparencia(const std::string& linha)
+    {
+        std::string token;
+        double d;
+
+        std::istringstream iss(linha);
+        iss >> token >> d;
+    }
+
+    void ProcessaModeloIluminacao(const std::string& linha)
+    {
+        std::string token;
+        int illum;
+
+        std::istringstream iss(linha);
+        iss >> token >> illum;
+    }
+
+    void ProcessaMapaTextura(const std::string& linha)
+    {
+        std::string token;
+        std::string mapKd;
+
+        std::istringstream iss(linha);
+        iss >> token >> mapKd;
+
+        std::string caminhoMapaTextura;
+
+        const size_t posBarra = _caminhoMtl.find_last_of("/\\");
+        if (posBarra == std::string::npos)
+        {
+            caminhoMapaTextura = mapKd;
+        }
+        else
+        {
+            const std::string diretorio = _caminhoMtl.substr(0, posBarra + 1);
+            caminhoMapaTextura = diretorio + mapKd;
+        }
+
+        MaterialCorrente().CarregaTextura(caminhoMapaTextura);
     }
 
     void ProcessaVerticeGeometrico(const std::string& linha)
@@ -2532,6 +2932,8 @@ private:
         
         TFace face;
         face.vertices = verticesFace;
+        face.material = &MaterialCorrente();
+
         _faces.push_back(face);
     }
 
@@ -2540,8 +2942,19 @@ private:
         return linha.rfind(token + " ", 0) == 0;
     }
 
-    std::ifstream _is;
+    TMaterial& MaterialCorrente()
+    {
+        return _materiais[_materialCorrente];
+    }
+
+    std::string _caminhoObj;
+    std::string _caminhoMtl;
+    std::ifstream _isObj;
+    std::ifstream _isMtl;
     bool _parseado = false;
+
+    std::unordered_map<std::string, TMaterial> _materiais;
+    std::string _materialCorrente;
 
     std::vector<TPonto3D> _verticesGeometricos;
     std::vector<TPonto3D> _coordsTexturaVertices;
@@ -2750,9 +3163,20 @@ private:
     TCor Cor(const IEntidade3D& entidade, const TRaio3D& raio, double ti) const
     {   
         const TPonto3D pi = raio.Ponto(ti);
-        const std::pair<double, double> uv = entidade.CoordenadasUV(pi);
+        const std::pair<double, double> uv = entidade.CoordenadasUV(pi, raio);
 
         const TMaterial& material = entidade.Material(raio);
+
+        if (material.Textura() != nullptr)
+        {
+            if (auto entidadeComposta = dynamic_cast<const TEntidadeComposta*>(&entidade))
+            {
+                std::stringstream ss;
+                ss << "EntidadeInterceptada = " << entidadeComposta->Rotulo(raio);
+                Tracer::Trace(ss.str().c_str());
+            }
+        }
+
         const double kdR = material.KdR(uv.first, uv.second);
         const double kdG = material.KdG(uv.first, uv.second);
         const double kdB = material.KdB(uv.first, uv.second);
@@ -2970,10 +3394,13 @@ TCubo FabricaCubo()
 
 TMalha3D FabricaMalha()
 {
+    // TMaterial material = FabricaMaterialHomogeneo({ 1.0, 0.078, 0.576 }, 10.0);
+    // material.CarregaTextura(ResTbl::TEX_SPYRO1);
+
     TMalha3D malha;
-    TLeitorMalha3D::Carrega(ResTbl::OBJ_SPYRO, malha);
+    TLeitorMalha3D::Carrega(ResTbl::OBJ_SPYRO, ResTbl::MTL_SPYRO, malha);
     malha.Rotulo("MALHA_1");
-    malha.Material(FabricaMaterialHomogeneo({ 1.0, 0.078, 0.576 }, 10.0));
+    // malha.Material(material);
     malha.Traslada({ 0.0, 0.0, -10.0 });
 
     return malha;
