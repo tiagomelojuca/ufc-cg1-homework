@@ -1693,12 +1693,9 @@ class TSuperficieTriangular : public TPlano
 public:
     TSuperficieTriangular() = delete;
     TSuperficieTriangular(const TPonto3D& p1, const TPonto3D& p2, const TPonto3D& p3)
-        : _p1(p1),
-          _p2(p2),
-          _p3(p3),
-          TPlano { p1, FuncoesGeometricas::Normal(p1, p2, p3).Normalizado() }
+        : _p1(p1), _p2(p2), _p3(p3), TPlano { { 0.0, 0.0, 0.0 }, { 0.0, 0.0, 0.0 } }
     {
-        _N = FuncoesGeometricas::Normal(p1, p2, p3);
+        AtualizaDados();
     }
 
     IEntidade3D* Copia() const override
@@ -1739,7 +1736,23 @@ public:
         return intersecoes;
     }
 
+    void Traslada(const TPonto3D& t)
+    {
+        _p1 += t;
+        _p2 += t;
+        _p3 += t;
+
+        AtualizaDados();
+    }
+
 private:
+    void AtualizaDados()
+    {
+        _p = _p1;
+        _N = FuncoesGeometricas::Normal(_p1, _p2, _p3);
+        _n = _N.Normalizado();
+    }
+
     TPonto3D _p1;
     TPonto3D _p2;
     TPonto3D _p3;
@@ -1900,6 +1913,15 @@ public:
     {
         TEntidadeComposta::Insere(triangulo);
         static_cast<TSuperficieTriangular&>(*_entidades.back().get()).Material(_material);
+    }
+
+    void Traslada(const TPonto3D& t)
+    {
+        for (std::unique_ptr<IEntidade3D>& entidade : _entidades)
+        {
+            auto& triangulo = static_cast<TSuperficieTriangular&>(*entidade.get());
+            triangulo.Traslada(t);
+        }
     }
 
 private:
@@ -2949,9 +2971,10 @@ TCubo FabricaCubo()
 TMalha3D FabricaMalha()
 {
     TMalha3D malha;
-    TLeitorMalha3D::Carrega(ResTbl::OBJ_GOLDFISH, malha);
+    TLeitorMalha3D::Carrega(ResTbl::OBJ_SPYRO, malha);
     malha.Rotulo("MALHA_1");
     malha.Material(FabricaMaterialHomogeneo({ 1.0, 0.078, 0.576 }, 10.0));
+    malha.Traslada({ 0.0, 0.0, -10.0 });
 
     return malha;
 }
