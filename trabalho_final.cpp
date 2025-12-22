@@ -921,7 +921,7 @@ public:
     // Vamos prover uma API para acesso direto, mas, opcionalmente,
     // o usuario pode especificar um dispositivo grafico de saida
     // (como uma TWin32Viewport), de forma que, na chamada de Flush
-    // (como em TCena3D::Renderizar), os pixels sejam transferidos
+    // (como em TCena3D::Renderiza), os pixels sejam transferidos
     // de forma gerenciada para esse dispositivo de saida final
     // NOTA: o buffer nao eh "dono" do out device, ou seja, nao eh
     // responsavel por gerenciar sua memoria
@@ -3052,31 +3052,16 @@ public:
         _fontes.push_back(std::unique_ptr<IFonteLuminosa>(fonte.Copia()));
     }
 
-    void Renderizar(IDispositivoSaida& arq)
+    void Renderiza(IDispositivoSaida& arq)
     {
-        if (auto arqLog = dynamic_cast<TArquivoLOG*>(&arq))
+        if (_podeRenderizarMT)
         {
-            _arqLog = arqLog;
+            RenderizaMultiThread(arq);
         }
-
-        const uint16_t nLinhas = _janela.AlturaCanvas();
-        const uint16_t nColunas = _janela.LarguraCanvas();
-
-        const double z = _janela.Centro().Z();
-        for (int l = 0; l < nLinhas; l++)
+        else
         {
-            const double y = _janela.Y(l);
-
-            for (int c = 0; c < nColunas; c++)
-            {
-                const double x = _janela.X(c);
-
-                arq.Anexa(Cor({ x, y, z }));
-            }
+            RenderizaSingleThread(arq);
         }
-
-        _arqLog = nullptr;
-        arq.Flush();
     }
 
     std::string Pick(uint16_t x, uint16_t y)
@@ -3122,7 +3107,60 @@ public:
         }
     }
 
+    void PodeRenderizarMultiThread(bool mt)
+    {
+        _podeRenderizarMT = mt;
+    }
+
 private:
+    void RenderizaSingleThread(IDispositivoSaida& arq)
+    {
+        if (auto arqLog = dynamic_cast<TArquivoLOG*>(&arq))
+        {
+            _arqLog = arqLog;
+        }
+
+        const uint16_t nLinhas = _janela.AlturaCanvas();
+        const uint16_t nColunas = _janela.LarguraCanvas();
+
+        const double z = _janela.Centro().Z();
+        for (int l = 0; l < nLinhas; l++)
+        {
+            const double y = _janela.Y(l);
+
+            for (int c = 0; c < nColunas; c++)
+            {
+                const double x = _janela.X(c);
+
+                arq.Anexa(Cor({ x, y, z }));
+            }
+        }
+
+        _arqLog = nullptr;
+        arq.Flush();
+    }
+
+    void RenderizaMultiThread(IDispositivoSaida& arq)
+    {
+        const uint16_t nLinhas = _janela.AlturaCanvas();
+        const uint16_t nColunas = _janela.LarguraCanvas();
+
+        const double z = _janela.Centro().Z();
+        for (int l = 0; l < nLinhas; l++)
+        {
+            const double y = _janela.Y(l);
+
+            for (int c = 0; c < nColunas; c++)
+            {
+                const double x = _janela.X(c);
+
+                arq.Anexa({ 255u, 0u, 0u });
+            }
+        }
+
+        arq.Flush();
+    }
+
     TCor Cor(const TPonto3D& p) const
     {
         const TVetor3D d = FuncoesGeometricas::Versor(_p0, p);
@@ -3216,6 +3254,7 @@ private:
     }
 
     TArquivoLOG* _arqLog = nullptr;
+    bool _podeRenderizarMT = false;
 
     TJanela _janela;
     TPonto3D _p0; // olho do pintor (origem)
@@ -3422,6 +3461,8 @@ TCena3D FabricaCena()
     // cena.Insere(FabricaEsfera());
     cena.Insere(FabricaFontePontual());
 
+    cena.PodeRenderizarMultiThread(false);
+
     return cena;
 }
 
@@ -3450,7 +3491,7 @@ bool RenderizaImagem()
     const bool erro = !arq->Aberto();
     if (!erro)
     {
-        cena.Renderizar(*arq);
+        cena.Renderiza(*arq);
     }
 
     return erro;
@@ -3649,8 +3690,8 @@ private:
             // TFrameBuffer fb(w, h);
             TWin32Viewport vp(hdc, x, y, w, h);
             // fb.OutDevice(vp);
-            // cena.Renderizar(fb);
-            cena.Renderizar(vp);
+            // cena.Renderiza(fb);
+            cena.Renderiza(vp);
 
             SetCursor(cursorAntigo);
         }
