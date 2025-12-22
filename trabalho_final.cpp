@@ -1873,6 +1873,11 @@ class TMalha3D : public TEntidadeComposta
 public:
     TMalha3D() = default;
 
+    TMalha3D(const TMalha3D& outra) : TEntidadeComposta(outra)
+    {
+        _material = outra._material;
+    }
+
     IEntidade3D* Copia() const override
     {
         return new TMalha3D(*this);
@@ -1884,7 +1889,7 @@ public:
 
         for (std::unique_ptr<IEntidade3D>& entidade : _entidades)
         {
-            auto triangulo = static_cast<TSuperficieTriangular&>(*entidade.get());
+            auto& triangulo = static_cast<TSuperficieTriangular&>(*entidade.get());
             triangulo.Material(_material);
         }
     }
