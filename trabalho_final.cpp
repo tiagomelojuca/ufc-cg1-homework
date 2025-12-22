@@ -101,7 +101,7 @@ namespace ResTbl
 class Tracer
 {
 public:
-    static void Trace(const char* msg)
+    static void Trace(const std::string& msg)
     {
         if (_isTraceActive)
         {
@@ -110,7 +110,7 @@ public:
                 // Acho que aqui nao precisa setar a flag out explicitamente por ja
                 // ser uma ofstream, inclusive funciona sem, mas como nao pesquisei muito
                 // e vi que no ctor default da libstdc++ seta, vou deixar assim mesmo
-                std::ofstream os("Trace.txt", std::ios_base::out | std::ios_base::app);
+                std::ofstream os(NomeArquivo(), std::ios_base::out | std::ios_base::app);
                 if (os.is_open())
                 {
                     os << msg << std::endl;
@@ -126,6 +126,11 @@ public:
         }
     }
 
+    static void LimpaTrace()
+    {
+        std::ofstream(NomeArquivo(), std::ios_base::out);
+    }
+
     static void TraceActive(bool traceActive)
     {
         _isTraceActive = traceActive;
@@ -137,6 +142,11 @@ public:
     }
 
 private:
+    static constexpr const char* NomeArquivo()
+    {
+        return "Trace.txt";
+    }
+
     static bool _isTraceActive;
     static bool _traceToFile;
 };
@@ -1409,12 +1419,6 @@ private:
     {
         if (_tex != nullptr)
         {
-            Tracer::Trace(ToString().c_str());
-
-            std::stringstream ss;
-            ss << "    uv = { " << u << ", " << v << "}";
-            Tracer::Trace(ss.str().c_str());
-
             auto x = static_cast<uint16_t>(u * (_tex->Largura() - 1));
             auto y = static_cast<uint16_t>((1.0 - v) * (_tex->Altura() - 1));
 
@@ -1808,20 +1812,6 @@ private:
 
 class TSuperficieTriangular : public TPlano
 {
-private:
-    struct TBaricentros
-    {
-        double c1;
-        double c2;
-        double c3;
-
-        bool MesmoSinal() const
-        {
-            return c1 >= 0.0 && c2 >= 0.0 && c3 >= 0.0 ||
-                   c1 <= 0.0 && c2 <= 0.0 && c3 <= 0.0;
-        }
-    };
-
 public:
     TSuperficieTriangular() = delete;
     TSuperficieTriangular(const TPonto3D& p1, const TPonto3D& p2, const TPonto3D& p3)
@@ -1837,10 +1827,16 @@ public:
 
     std::pair<double, double> CoordenadasUV(const TPonto3D& p, const TRaio3D& raio) const override
     {
-        const TBaricentros b = CalcularBaricentricos(p);
+        const double normaN = _N.Norma();
+        const double areaABC = FuncoesGeometricas::ProdutoMisto(_p2-_p1, _p3-_p1, _N) / normaN;
+        const double volumeABC = normaN * areaABC;
 
-        const double u = b.c1 * _uv1.first  + b.c2 * _uv2.first  + b.c3 * _uv3.first;
-        const double v = b.c1 * _uv1.second + b.c2 * _uv2.second + b.c3 * _uv3.second;
+        const double c1 = FuncoesGeometricas::ProdutoMisto(_p2 - p, _p3 - p, _N) / volumeABC;
+        const double c2 = FuncoesGeometricas::ProdutoMisto(_p3 - p, _p1 - p, _N) / volumeABC;
+        const double c3 = 1.0 - c1 - c2;
+
+        const double u = c1 * _uv1.first  + c2 * _uv2.first  + c3 * _uv3.first;
+        const double v = c1 * _uv1.second + c2 * _uv2.second + c3 * _uv3.second;
 
         return { u, v };
     }
@@ -1871,8 +1867,16 @@ public:
         for (double intersecaoPlano : intersecoesPlano)
         {
             const TPonto3D pI = raio.Ponto(intersecaoPlano);
-            const TBaricentros baricentros = CalcularBaricentricos(pI);
-            const bool intersecaoDentro = baricentros.MesmoSinal();
+
+            const TVetor3D s1 = _p1 - pI;
+            const TVetor3D s2 = _p2 - pI;
+            const TVetor3D s3 = _p3 - pI;
+
+            const double normaN = _N.Norma();
+            const double c1 = FuncoesGeometricas::ProdutoMisto(_n, s3, s1) / normaN;
+            const double c2 = FuncoesGeometricas::ProdutoMisto(_n, s1, s2) / normaN;
+            const double c3 = 1.0 - c1 - c2;
+            const bool intersecaoDentro = c1 > 0.0 && c2 > 0.0 && c3 > 0.0;
 
             if (intersecaoDentro)
             {
@@ -1898,20 +1902,6 @@ private:
         _p = _p1;
         _N = FuncoesGeometricas::Normal(_p1, _p2, _p3);
         _n = _N.Normalizado();
-    }
-
-    TBaricentros CalcularBaricentricos(const TPonto3D& p) const
-    {
-        const TVetor3D s1 = _p1 - p;
-        const TVetor3D s2 = _p2 - p;
-        const TVetor3D s3 = _p3 - p;
-
-        const double normaN = _N.Norma();
-        const double c1 = FuncoesGeometricas::ProdutoMisto(_n, s3, s1) / normaN;
-        const double c2 = FuncoesGeometricas::ProdutoMisto(_n, s1, s2) / normaN;
-        const double c3 = 1.0 - c1 - c2;
-
-        return { c1, c2, c3 };
     }
 
     TPonto3D _p1;
@@ -2634,11 +2624,7 @@ public:
 
                 if (face.material != nullptr)
                 {
-                    std::stringstream ss;
-                    ss << "Face = " << t.Rotulo();
-                    Tracer::Trace(ss.str().c_str());
                     t.Material(*face.material);
-                    Tracer::Trace(face.material->ToString().c_str());
                 }
 
                 malha.Adiciona(t);
@@ -3166,17 +3152,6 @@ private:
         const std::pair<double, double> uv = entidade.CoordenadasUV(pi, raio);
 
         const TMaterial& material = entidade.Material(raio);
-
-        if (material.Textura() != nullptr)
-        {
-            if (auto entidadeComposta = dynamic_cast<const TEntidadeComposta*>(&entidade))
-            {
-                std::stringstream ss;
-                ss << "EntidadeInterceptada = " << entidadeComposta->Rotulo(raio);
-                Tracer::Trace(ss.str().c_str());
-            }
-        }
-
         const double kdR = material.KdR(uv.first, uv.second);
         const double kdG = material.KdG(uv.first, uv.second);
         const double kdB = material.KdB(uv.first, uv.second);
@@ -3430,11 +3405,11 @@ TCena3D FabricaCena()
 {
     const TPonto3D p0 { 0.0, 0.0, 0.0 };
 
-    const double wJanela = 15.0;
-    const double hJanela = 15.0;
+    const double wJanela = 60.0;
+    const double hJanela = 60.0;
     const double dJanela = 30.0;
-    const uint16_t wCanvas = 125u;
-    const uint16_t hCanvas = 125u;
+    const uint16_t wCanvas = 500u;
+    const uint16_t hCanvas = 500u;
     const TJanela janela { { 0.0, 0.0, -dJanela }, wJanela, hJanela, wCanvas, hCanvas };
 
     TCena3D cena { p0, janela };
@@ -3836,6 +3811,7 @@ std::wstring TMainWindow::pickedObject = L"NENHUM";
 
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, PWSTR pCmdLine, int nCmdShow)
 {
+    Tracer::LimpaTrace();
     TMainWindow(hInstance, pCmdLine, nCmdShow).Executa();
 
     return 0;
