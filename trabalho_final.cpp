@@ -86,7 +86,9 @@ static bool bp = false;
 
 namespace ResTbl
 {
-    static constexpr const char* TEXTURA_MADEIRA = "recursos/Misc/tex.bmp";
+    static constexpr const char* TEX_MADEIRA  = "recursos/Misc/tex.bmp";
+    static constexpr const char* OBJ_GOLDFISH = "recursos/Goldfish/Goldfish_01.obj";
+    static constexpr const char* OBJ_SPYRO    = "recursos/Spyro/Spyro.obj";
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -2325,6 +2327,208 @@ private:
 
 // ------------------------------------------------------------------------------------------------
 
+class TLeitorMalha3D
+{
+private:
+    struct TVertice
+    {
+        int v  = -1; // indice da posicao geometrica do vertice
+        int vt = -1; // indice da coordenada da textura do vertice
+        int vn = -1; // indice da normal do vertice
+    };
+
+    struct TFace
+    {
+        std::vector<TVertice> vertices;
+    };
+
+public:
+    TLeitorMalha3D(const std::string& obj) : _is(obj) {}
+
+    static void Carrega(const std::string& obj, TMalha3D& malha)
+    {
+        TLeitorMalha3D leitorMalha(obj);
+        leitorMalha.Parse();
+        leitorMalha.Popula(malha);
+    }
+
+    void Parse()
+    {
+        if (!_parseado && _is.is_open())
+        {
+            std::string linha;
+            while (std::getline(_is, linha))
+            {
+                Processa(linha);
+            }
+
+            _parseado = true;
+        }
+    }
+
+    void Popula(TMalha3D& malha) const
+    {
+        // Eh uma premissa de 99% dos exporters, incluindo obj, que as
+        // faces declaradas sao poligonos planos convexos. Se nao for,
+        // nem o proprio OpenGL aceita. Portanto, para qualquer face com N
+        // vertices (N >= 3), podemos triangularizar da seguinte forma:
+        // (v0, v1, v2)
+        // (v0, v2, v3)
+        // (v0, v3, v4)
+        // ...
+        // (v0, v(N-2), v(N-1))
+        // , onde temos um total de N - 2 triangulos
+        // 
+        // Por exemplo, considerando N = 5, temos NT = 5 - 2 = 3, a saber
+        // T1 = (v0, v1, v2)
+        // T2 = (v0, v2, v3)
+        // T3 = (v0, v3, v4)
+
+        for (const TFace& face : _faces)
+        {
+            const std::vector<TVertice>& verticesFace = face.vertices;
+            const auto nVertices = static_cast<int>(verticesFace.size());
+            if (nVertices < 3)
+            {
+                continue;
+            }
+
+            const int nt = nVertices - 2;
+            for (int i = 0; i < nt; i++)
+            {
+                const TVertice& v1 = verticesFace[0];
+                const TVertice& v2 = verticesFace[1 + i];
+                const TVertice& v3 = verticesFace[2 + i];
+
+                const TPonto3D& p1 = _verticesGeometricos[v1.v];
+                const TPonto3D& p2 = _verticesGeometricos[v2.v];
+                const TPonto3D& p3 = _verticesGeometricos[v3.v];
+
+                malha.Adiciona(TSuperficieTriangular { p1, p2, p3 });
+            }
+        }
+    }
+
+private:
+    void Processa(const std::string& linha)
+    {
+        if (linha.empty() || linha[0] == '#')
+        {
+            // NoOp
+        }
+        else if (IniciaComPalavraChave(linha, "v"))
+        {
+            ProcessaVerticeGeometrico(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "vt"))
+        {
+            ProcessaCoordenadasTexturaVertice(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "vn"))
+        {
+            ProcessaNormalVertice(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "f"))
+        {
+            ProcessaFace(linha);
+        }
+    }
+
+    void ProcessaVerticeGeometrico(const std::string& linha)
+    {
+        std::string token;
+        double x, y, z;
+
+        std::istringstream iss(linha);
+        iss >> token >> x >> y >> z;
+
+        _verticesGeometricos.push_back(TPonto3D { x, y, z });
+    }
+
+    void ProcessaCoordenadasTexturaVertice(const std::string& linha)
+    {
+        std::string token;
+        double u, v;
+
+        std::istringstream iss(linha);
+        iss >> token >> u >> v;
+
+        _coordsTexturaVertices.push_back(TPonto3D { u, v, 0.0 });
+    }
+
+    void ProcessaNormalVertice(const std::string& linha)
+    {
+        std::string token;
+        double x, y, z;
+
+        std::istringstream iss(linha);
+        iss >> token >> x >> y >> z;
+
+        _normaisVertices.push_back(TVetor3D { x, y, z });
+    }
+
+    void ProcessaFace(const std::string& linha)
+    {
+        auto LeVertice = [](const std::string& vertice)
+        {
+            std::istringstream iss(vertice);
+            std::string parte;
+
+            TVertice v;
+
+            if (std::getline(iss, parte, '/'))
+            {
+                v.v = std::stoi(parte) - 1;
+            }
+
+            if (std::getline(iss, parte, '/') && !parte.empty())
+            {
+                v.vt = std::stoi(parte) - 1;
+            }
+
+            if (std::getline(iss, parte, '/') && !parte.empty())
+            {
+                v.vn = std::stoi(parte) - 1;
+            }
+
+            return v;
+        };
+
+        std::istringstream iss(linha);
+
+        std::string token;
+        iss >> token;
+
+        std::vector<TVertice> verticesFace;
+
+        std::string strVertice;
+        while (iss >> strVertice)
+        {
+            const TVertice vertice = LeVertice(strVertice);
+            verticesFace.push_back(vertice);
+        }
+        
+        TFace face;
+        face.vertices = verticesFace;
+        _faces.push_back(face);
+    }
+
+    bool IniciaComPalavraChave(const std::string& linha, const std::string& token)
+    {
+        return linha.rfind(token + " ", 0) == 0;
+    }
+
+    std::ifstream _is;
+    bool _parseado = false;
+
+    std::vector<TPonto3D> _verticesGeometricos;
+    std::vector<TPonto3D> _coordsTexturaVertices;
+    std::vector<TVetor3D> _normaisVertices;
+    std::vector<TFace> _faces;
+};
+
+// ------------------------------------------------------------------------------------------------
+
 class TJanela
 {
 public:
@@ -2643,7 +2847,7 @@ TPlano FabricaChao()
     material.KaG(0.0);
     material.KaB(0.0);
     material.M(1.0);
-    material.CarregaTextura(ResTbl::TEXTURA_MADEIRA);
+    material.CarregaTextura(ResTbl::TEX_MADEIRA);
     material.Textura()->K(30.0);
 
     TPlano planoChao { { 0.0, -150.0, 0.0 }, { 0.0, 1.0, 0.0 } };
@@ -2745,6 +2949,7 @@ TCubo FabricaCubo()
 TMalha3D FabricaMalha()
 {
     TMalha3D malha;
+    TLeitorMalha3D::Carrega(ResTbl::OBJ_GOLDFISH, malha);
     malha.Rotulo("MALHA_1");
     malha.Material(FabricaMaterialHomogeneo({ 1.0, 0.078, 0.576 }, 10.0));
 
