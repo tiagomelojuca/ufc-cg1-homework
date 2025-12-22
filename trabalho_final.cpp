@@ -71,6 +71,7 @@
 #include <codecvt>
 #include <iostream>
 #include <unordered_map>
+#include <thread>
 
 #ifndef UNICODE
 #define UNICODE
@@ -3142,23 +3143,64 @@ private:
 
     void RenderizaMultiThread(IDispositivoSaida& arq)
     {
-        const uint16_t nLinhas = _janela.AlturaCanvas();
-        const uint16_t nColunas = _janela.LarguraCanvas();
-
-        const double z = _janela.Centro().Z();
-        for (int l = 0; l < nLinhas; l++)
+        struct RenderJob
         {
-            const double y = _janela.Y(l);
+            RenderJob(IDispositivoSaida& arq, TCena3D& c, int y0, int y1)
+                : arq(arq), c(c), y0(y0), y1(y1) {};
 
-            for (int c = 0; c < nColunas; c++)
+            void operator()()
             {
-                const double x = _janela.X(c);
-
-                arq.Anexa({ 255u, 0u, 0u });
+                for (int y = y0; y < y1; y++)
+                    for (int x = 0; x < W(); x++)
+                        arq.Anexa(c.Cor(P(x, y)));
             }
+
+            uint16_t W() const
+            {
+                return c.Janela().LarguraCanvas();
+            }
+
+            TPonto3D P(int x, int y) const
+            {
+                return { c.Janela().X(x), c.Janela().Y(y), c.Janela().Centro().Z() };
+            }
+
+            IDispositivoSaida& arq;
+            TCena3D& c;
+            int y0, y1;
+        };
+
+        const uint16_t h = _janela.AlturaCanvas();
+        const int n = std::thread::hardware_concurrency();
+        const int linhas = h / n;
+
+        std::vector<std::thread> threads;
+        for (int i = 0; i < n; i++)
+        {
+            int y0 = i * linhas;
+            int y1 = (i == n - 1) ? h : y0 + linhas;
+            threads.emplace_back(RenderJob { arq, *this, y0, y1 });
         }
 
-        arq.Flush();
+        for (auto& t : threads) t.join();
+
+        // const uint16_t nLinhas = _janela.AlturaCanvas();
+        // const uint16_t nColunas = _janela.LarguraCanvas();
+
+        // const double z = _janela.Centro().Z();
+        // for (int l = 0; l < nLinhas; l++)
+        // {
+        //     const double y = _janela.Y(l);
+
+        //     for (int c = 0; c < nColunas; c++)
+        //     {
+        //         const double x = _janela.X(c);
+
+        //         arq.Anexa({ 255u, 0u, 0u });
+        //     }
+        // }
+
+        // arq.Flush();
     }
 
     TCor Cor(const TPonto3D& p) const
