@@ -3003,11 +3003,11 @@ TCena3D FabricaCena()
 {
     const TPonto3D p0 { 0.0, 0.0, 0.0 };
 
-    const double wJanela = 60.0;
-    const double hJanela = 60.0;
+    const double wJanela = 30.0;
+    const double hJanela = 30.0;
     const double dJanela = 30.0;
-    const uint16_t wCanvas = 500u;
-    const uint16_t hCanvas = 500u;
+    const uint16_t wCanvas = 250u;
+    const uint16_t hCanvas = 250u;
     const TJanela janela { { 0.0, 0.0, -dJanela }, wJanela, hJanela, wCanvas, hCanvas };
 
     TCena3D cena { p0, janela };
