@@ -1115,6 +1115,28 @@ namespace FuncoesGerais
     {
         return { c.R() / 255.0, c.G() / 255.0, c.B() / 255.0 };
     }
+    TMatriz<double> Vec2Mtx(const TVetor4D& v)
+    {
+        TMatriz<double> V { 4u, 1u, { { v.X() },
+                                      { v.Y() },
+                                      { v.Z() },
+                                      { v.P() } }};
+        return V;
+    }
+    TVetor4D Mtx2Vec(const TMatriz<double>& mtx)
+    {
+        TVetor4D v;
+
+        if (mtx.NumeroLinhas() == 4 && mtx.NumeroColunas())
+        {
+            v.X(mtx[1][1]);
+            v.Y(mtx[2][1]);
+            v.Z(mtx[3][1]);
+            v.P(mtx[4][1]);
+        }
+
+        return v;
+    }
 
     std::unique_ptr<IArquivoSaida> FabricaArquivo(
         EFormatoImagem formato,
