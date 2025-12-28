@@ -1127,7 +1127,7 @@ namespace FuncoesGerais
     {
         TVetor4D v;
 
-        if (mtx.NumeroLinhas() == 4 && mtx.NumeroColunas())
+        if (mtx.NumeroLinhas() == 4 && mtx.NumeroColunas() == 1)
         {
             v.X(mtx[1][1]);
             v.Y(mtx[2][1]);
