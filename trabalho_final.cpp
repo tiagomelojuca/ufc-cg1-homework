@@ -3082,7 +3082,7 @@ public:
     TLeitorCena3D(const std::string& caminho) : _is(caminho) {}
 
 private:
-    std::ifstream _is;
+    std::ifstream _is; // .scn
 };
 
 // ------------------------------------------------------------------------------------------------
