@@ -317,6 +317,18 @@ public:
     void G(uint8_t g) { _g = g; };
     void B(uint8_t b) { _b = b; };
 
+    std::string ToString() const
+    {
+        std::stringstream ss;
+
+        ss << "TCor { "
+           << static_cast<int>(_r) << ", "
+           << static_cast<int>(_g) << ", "
+           << static_cast<int>(_b) << " }";
+
+        return ss.str();
+    }
+
 private:
     uint8_t _r = 0;
     uint8_t _g = 0;
@@ -448,6 +460,15 @@ public:
     TPonto3D() = default;
     TPonto3D(double x, double y, double z) : TVetor4D(x, y, z) {}
     TPonto3D(const TVetor4D& outro) : TVetor4D(outro.X(), outro.Y(), outro.Z()) {}
+
+    std::string ToString() const
+    {
+        std::stringstream ss;
+
+        ss << "TPonto3D { " << _x << ", " << _y << ", " << _z << " }";
+
+        return ss.str();
+    }
 };
 
 // ------------------------------------------------------------------------------------------------
@@ -494,6 +515,15 @@ public:
         TVetor3D ret = *this;
         ret /= Norma();
         return ret;
+    }
+
+    std::string ToString() const
+    {
+        std::stringstream ss;
+
+        ss << "TVetor3D { " << _x << ", " << _y << ", " << _z << " }";
+
+        return ss.str();
     }
 };
 
@@ -3491,8 +3521,8 @@ TCubo FabricaCubo()
 TMalha3D FabricaMalha()
 {
     TMalha3D malha;
+    malha.Rotulo("SPYRO_1");
     TLeitorMalha3D::Carrega(ResTbl::OBJ_SPYRO, malha);
-    malha.Rotulo("MALHA_1");
     malha.Traslada({ 0.0, 0.0, -10.0 });
 
     return malha;
