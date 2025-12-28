@@ -3222,6 +3222,10 @@ private:
         return pixel;
     }
 
+    // Segundo o ChatGPT, essa minha funcao aqui seria meu "shader", escrito na raca
+    // ouco muito falar em shader, mas nao entendo bem o que eh. Grosso modo, ele
+    // disse que eh a funcao que calcula a cor final de um pixel (renderiza um pixel?),
+    // entao no meu caso seria essa junto com a de cima (mas principalmente essa)
     TCor Cor(const IEntidade3D& entidade, const TRaio3D& raio, double ti) const
     {   
         const TPonto3D pi = raio.Ponto(ti);
