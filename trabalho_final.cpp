@@ -2597,6 +2597,11 @@ public:
         leitorMalha.Popula(malha);
 
         malha.DeveRotularTriangulosInseridosAutomaticamente(bkpDeveRotular);
+
+        // Malhas carregadas de OBJ em geral nao trabalham com modelo de Phong,
+        // de forma que nos interessa apenas a componente difusa, que vem do mapa
+        // de textura. Ignoramos as componentes ambiente e especular na forca bruta
+        malha.Transforma([](TSuperficieTriangular& t) { TrataCoeficientesPhong(t); });
     }
 
     bool Parse()
@@ -2997,6 +3002,21 @@ private:
         }
 
         return caminhoArq;
+    }
+
+    static void TrataCoeficientesPhong(TSuperficieTriangular& t)
+    {
+        TRaio3D dummy;
+        TMaterial m = t.Material(dummy);
+        m.KaR(0.0);
+        m.KaG(0.0);
+        m.KaB(0.0);
+        m.KeR(0.0);
+        m.KeG(0.0);
+        m.KeB(0.0);
+        m.M(1.0);
+
+        t.Material(m);
     }
 
     std::string _caminhoObj;
