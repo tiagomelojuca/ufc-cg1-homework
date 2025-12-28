@@ -2119,7 +2119,7 @@ public:
             if (Rotulo() != "" && trianguloInserido.Rotulo() == "")
             {
                 std::stringstream ss;
-                ss << "TRIANGULO_" << _entidades.size() << "_MALHA_" << Rotulo();
+                ss << Rotulo() << "_TRIANGULO_" << _entidades.size();
                 trianguloInserido.Rotulo(ss.str());
             }
         }
@@ -3521,7 +3521,7 @@ TCubo FabricaCubo()
 TMalha3D FabricaMalha()
 {
     TMalha3D malha;
-    malha.Rotulo("SPYRO_1");
+    malha.Rotulo("MALHA_1");
     TLeitorMalha3D::Carrega(ResTbl::OBJ_SPYRO, malha);
     malha.Traslada({ 0.0, 0.0, -10.0 });
 
