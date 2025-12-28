@@ -422,7 +422,7 @@ public:
     void X(double x) { _x = x; }
     void Y(double y) { _y = y; }
     void Z(double z) { _z = z; }
-    void P(double p) { _p = p == 0.0 ? 0 : 1; }
+    void P(double p) { _p = p == 0.0 ? 0 : 1; } // deve ser suficiente pra tratar imprecisoes de PF
 
     TVetor4D& operator+=(const TVetor4D& outro)
     {
