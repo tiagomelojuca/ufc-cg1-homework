@@ -156,7 +156,7 @@ bool Tracer::_traceToFile   = true;
 
 // ------------------------------------------------------------------------------------------------
 
-template <typename T, typename S>
+template <typename T, typename S = uint16_t>
 class TMatriz
 {
 public:
@@ -166,6 +166,10 @@ public:
         TLinha(T* ptrLinha) : _ptr(ptrLinha) {}
 
         T& operator[](S coluna)
+        {
+            return _ptr[coluna - 1];
+        }
+        const T& operator[](S coluna) const
         {
             return _ptr[coluna - 1];
         }
@@ -179,6 +183,21 @@ public:
         _linhas = linhas;
         _colunas = colunas;
         AlocaMem(_linhas, _colunas);
+    }
+
+    TMatriz(S linhas, S colunas, const std::vector<std::vector<T>>& elementos)
+    {
+        _linhas = linhas;
+        _colunas = colunas;
+        AlocaMem(_linhas, _colunas);
+
+        for (S linha = 0; linha < _linhas; linha++)
+        {
+            for (S coluna = 0; coluna < _colunas; coluna++)
+            {
+                _matriz[linha][coluna] = elementos[linha][coluna];
+            }
+        }
     }
 
     TMatriz(const TMatriz& outra)
@@ -270,6 +289,15 @@ public:
     {
         return TLinha(_matriz[linha - 1]);
     }
+    // caveat: acho que isso permite acesso nao const ao elemento,
+    //         porque vai permitir a uma const matrix voltar por copia
+    //         um smart handle (nao necessariamente const), que vai
+    //         acabar resolvendo no operador nao-const do smart handle,
+    //         mas nao quero tratar isso agora, mt coisa ainda pra fazer
+    TLinha operator[](S linha) const
+    {
+        return TLinha(_matriz[linha - 1]);
+    }
 
     S NumeroLinhas() const
     {
@@ -280,13 +308,44 @@ public:
         return _colunas;
     }
 
+    TMatriz Produto(const TMatriz& outra) const
+    {
+        if (_colunas != outra._linhas)
+        {
+            return TMatriz { 0, 0 };
+        }
+
+        TMatriz P(_linhas, outra._colunas);
+        for (int i = 1; i <= _linhas; i++)
+        {
+            for (int j = 1; j <= outra._colunas; j++)
+            {
+                for (int k = 1; k <= _colunas; k++)
+                {
+                    P[i][j] += (*this)[i][k] * outra[k][j];
+                }
+            }
+        }
+
+        return P;
+    }
+
+    bool Inconsistente() const
+    {
+        return _linhas == 0 || _colunas == 0;
+    }
+
 protected:
     void AlocaMem(S linhas, S colunas)
     {
         _matriz = new T*[linhas];
         for (S linha = 0; linha < linhas; linha++)
         {
-            _matriz[linha] = new T[colunas];
+            // se T for uma classe definida pelo usuario, provavelmente
+            // tem um valor default bem definido, mas tipos primitivos
+            // seriam inicializados com lixo, entao usamos as chaves para
+            // garantir inicializacao semantica (value initialization)
+            _matriz[linha] = new T[colunas]{};
         }
     }
 
