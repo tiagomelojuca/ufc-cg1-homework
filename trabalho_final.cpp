@@ -3721,6 +3721,11 @@ TCena3D FabricaCena3()
     cena.IambG(0.3);
     cena.IambB(0.3);
 
+    // cena.Insere(FabricaChao());
+    // cena.Insere(FabricaParedeLateralDireita());
+    // cena.Insere(FabricaParedeFrontal());
+    // cena.Insere(FabricaParedeLateralEsquerda());
+    // cena.Insere(FabricaTeto());
     cena.Insere(FabricaMalha());
     cena.Insere(FabricaFontePontual());
 
@@ -3776,7 +3781,7 @@ std::unordered_map<std::string, PtrFabricaCena> FabricasCenasPreDefinidas = {
 
 TCena3D FabricaCena()
 {
-    return FabricasCenasPreDefinidas["MENOR"]();
+    return FabricasCenasPreDefinidas["TESTE"]();
 }
 
 // ------------------------------------------------------------------------------------------------
