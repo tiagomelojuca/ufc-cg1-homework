@@ -3143,7 +3143,17 @@ public:
 
         const THit hit = ColisaoMaisProxima(raio);
 
-        return hit.entidade != nullptr ? hit.entidade->Rotulo() : "NENHUM";
+        if (hit.entidade == nullptr)
+        {
+            return "NENHUM";
+        }
+
+        if (auto entidadeComposta = dynamic_cast<const TEntidadeComposta*>(hit.entidade))
+        {
+            return entidadeComposta->Rotulo(raio);
+        }
+
+        return hit.entidade->Rotulo();
     }
 
     // Nao sei se "colisao" eh uma boa traducao/adaptacao para hit, mas enfim
