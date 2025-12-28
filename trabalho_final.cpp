@@ -72,6 +72,7 @@
 #include <iostream>
 #include <unordered_map>
 #include <thread>
+#include <functional>
 
 #ifndef UNICODE
 #define UNICODE
@@ -2052,6 +2053,7 @@ public:
 
     TMalha3D(const TMalha3D& outra) : TEntidadeComposta(outra)
     {
+        _deveRotularTriangulosInseridosAutomaticamente = outra._deveRotularTriangulosInseridosAutomaticamente;
     }
 
     IEntidade3D* Copia() const override
@@ -2059,23 +2061,38 @@ public:
         return new TMalha3D(*this);
     }
 
-    // void Material(const TMaterial& material)
-    // {
-    //     // _material = material;
+    void Visita(std::function<void(const TSuperficieTriangular&)> FuncaoVisita)
+    {
+        for (std::unique_ptr<IEntidade3D>& entidade : _entidades)
+        {
+            auto& triangulo = static_cast<TSuperficieTriangular&>(*entidade.get());
+            FuncaoVisita(triangulo);
+        }
+    }
 
-    //     // for (std::unique_ptr<IEntidade3D>& entidade : _entidades)
-    //     // {
-    //     //     auto& triangulo = static_cast<TSuperficieTriangular&>(*entidade.get());
-    //     //     triangulo.Material(_material);
-    //     // }
-    // }
+    void Transforma(std::function<void(TSuperficieTriangular&)> FuncaoTransformacao)
+    {
+        for (std::unique_ptr<IEntidade3D>& entidade : _entidades)
+        {
+            auto& triangulo = static_cast<TSuperficieTriangular&>(*entidade.get());
+            FuncaoTransformacao(triangulo);
+        }
+    }
 
     void Adiciona(const TSuperficieTriangular& triangulo)
     {
         TEntidadeComposta::Insere(triangulo);
-        // auto& trianguloInserido = static_cast<TSuperficieTriangular&>(*_entidades.back().get());
 
-        // trianguloInserido.Material(_material);
+        if (_deveRotularTriangulosInseridosAutomaticamente)
+        {
+            auto& trianguloInserido = static_cast<TSuperficieTriangular&>(*_entidades.back().get());
+            if (Rotulo() != "" && trianguloInserido.Rotulo() == "")
+            {
+                std::stringstream ss;
+                ss << "TRIANGULO_" << _entidades.size() << "_MALHA_" << Rotulo();
+                trianguloInserido.Rotulo(ss.str());
+            }
+        }
     }
 
     void Traslada(const TPonto3D& t)
@@ -2086,6 +2103,18 @@ public:
             triangulo.Traslada(t);
         }
     }
+
+    bool DeveRotularTriangulosInseridosAutomaticamente() const
+    {
+        return _deveRotularTriangulosInseridosAutomaticamente;
+    }
+    void DeveRotularTriangulosInseridosAutomaticamente(bool deveRotularAutomaticamente)
+    {
+        _deveRotularTriangulosInseridosAutomaticamente = deveRotularAutomaticamente;
+    }
+
+private:
+    bool _deveRotularTriangulosInseridosAutomaticamente = false;
 };
 
 // ------------------------------------------------------------------------------------------------
@@ -2530,9 +2559,14 @@ public:
 
     static void Carrega(const std::string& obj, TMalha3D& malha)
     {
+        const bool bkpDeveRotular = malha.DeveRotularTriangulosInseridosAutomaticamente();
+        malha.DeveRotularTriangulosInseridosAutomaticamente(true);
+
         TLeitorMalha3D leitorMalha(obj);
         leitorMalha.Parse();
         leitorMalha.Popula(malha);
+
+        malha.DeveRotularTriangulosInseridosAutomaticamente(bkpDeveRotular);
     }
 
     bool Parse()
@@ -2594,7 +2628,6 @@ public:
         // T2 = (v0, v2, v3)
         // T3 = (v0, v3, v4)
 
-        int numeroFace = 1;
         for (const TFace& face : _faces)
         {
             const std::vector<TVertice>& verticesFace = face.vertices;
@@ -2616,7 +2649,6 @@ public:
                 const TPonto3D& p3 = _verticesGeometricos[v3.v];
 
                 TSuperficieTriangular t { p1, p2, p3 };
-                t.Rotulo(std::to_string(numeroFace++));
 
                 if (v1.vt != -1)
                 {
@@ -3235,7 +3267,7 @@ private:
     // disse que eh a funcao que calcula a cor final de um pixel (renderiza um pixel?),
     // entao no meu caso seria essa junto com a de cima (mas principalmente essa)
     TCor Cor(const IEntidade3D& entidade, const TRaio3D& raio, double ti) const
-    {   
+    {
         const TPonto3D pi = raio.Ponto(ti);
         const TCoordenadasUV uv = entidade.CoordenadasUV(pi, raio);
 
