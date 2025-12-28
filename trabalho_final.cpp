@@ -328,6 +328,14 @@ using TImagem = TMatriz<TCor, uint16_t>;
 
 // ------------------------------------------------------------------------------------------------
 
+struct TCoordenadasUV
+{
+    double u;
+    double v;
+};
+
+// ------------------------------------------------------------------------------------------------
+
 class TVetor4D
 {
 public:
@@ -1494,7 +1502,7 @@ public:
     virtual IEntidade3D* Copia() const = 0;
     virtual std::string Rotulo() const = 0;
     virtual TMaterial Material(const TRaio3D& raio) const = 0;
-    virtual std::pair<double, double> CoordenadasUV(const TPonto3D& p, const TRaio3D& raio) const = 0;
+    virtual TCoordenadasUV CoordenadasUV(const TPonto3D& p, const TRaio3D& raio) const = 0;
 
     virtual TVetor3D Normal(const TPonto3D& p, const TRaio3D& raio) const = 0;
     virtual std::vector<double> Intersecoes(const TRaio3D& raio) const = 0;
@@ -1614,9 +1622,9 @@ public:
         return material;
     }
 
-    std::pair<double, double> CoordenadasUV(const TPonto3D& p, const TRaio3D& raio) const override
+    TCoordenadasUV CoordenadasUV(const TPonto3D& p, const TRaio3D& raio) const override
     {
-        std::pair<double, double> uv;
+        TCoordenadasUV uv;
 
         const IEntidade3D* entidade = EntidadeInterceptada(raio);
         if (entidade != nullptr)
@@ -1716,7 +1724,7 @@ public:
         _material = material;
     }
 
-    std::pair<double, double> CoordenadasUV(const TPonto3D& p, const TRaio3D& raio) const override
+    TCoordenadasUV CoordenadasUV(const TPonto3D& p, const TRaio3D& raio) const override
     {
         double u = 0.0;
         double v = 0.0;
@@ -1730,7 +1738,7 @@ public:
             v = v - floor(v);
         }
 
-        return std::pair<double, double>(u, v);
+        return { u, v };
     }
 
     const TPonto3D& PontoReferencia() const
@@ -1824,7 +1832,7 @@ public:
         return new TSuperficieTriangular(*this);
     }
 
-    std::pair<double, double> CoordenadasUV(const TPonto3D& p, const TRaio3D& raio) const override
+    TCoordenadasUV CoordenadasUV(const TPonto3D& p, const TRaio3D& raio) const override
     {
         const double normaN = _N.Norma();
         const double areaABC = FuncoesGeometricas::ProdutoMisto(_p2-_p1, _p3-_p1, _N) / normaN;
@@ -1834,21 +1842,21 @@ public:
         const double c2 = FuncoesGeometricas::ProdutoMisto(_p3 - p, _p1 - p, _N) / volumeABC;
         const double c3 = 1.0 - c1 - c2;
 
-        const double u = c1 * _uv1.first  + c2 * _uv2.first  + c3 * _uv3.first;
-        const double v = c1 * _uv1.second + c2 * _uv2.second + c3 * _uv3.second;
+        const double u = c1 * _uv1.u + c2 * _uv2.u + c3 * _uv3.u;
+        const double v = c1 * _uv1.v + c2 * _uv2.v + c3 * _uv3.v;
 
         return { u, v };
     }
 
-    void CoordenadasUV1(const std::pair<double, double>& uv)
+    void CoordenadasUV1(TCoordenadasUV uv)
     {
         _uv1 = uv;
     }
-    void CoordenadasUV2(const std::pair<double, double>& uv)
+    void CoordenadasUV2(TCoordenadasUV uv)
     {
         _uv2 = uv;
     }
-    void CoordenadasUV3(const std::pair<double, double>& uv)
+    void CoordenadasUV3(TCoordenadasUV uv)
     {
         _uv3 = uv;
     }
@@ -1907,9 +1915,9 @@ private:
     TPonto3D _p2;
     TPonto3D _p3;
 
-    std::pair<double, double> _uv1;
-    std::pair<double, double> _uv2;
-    std::pair<double, double> _uv3;
+    TCoordenadasUV _uv1;
+    TCoordenadasUV _uv2;
+    TCoordenadasUV _uv3;
 
     TVetor3D _N;
 };
@@ -2111,9 +2119,9 @@ public:
         _material = material;
     }
 
-    std::pair<double, double> CoordenadasUV(const TPonto3D& p, const TRaio3D& raio) const override
+    TCoordenadasUV CoordenadasUV(const TPonto3D& p, const TRaio3D& raio) const override
     {
-        return std::pair<double, double>(0.0, 0.0);
+        return { 0.0, 0.0 };
     }
 
     const TPonto3D& Centro() const { return _centro; }
@@ -2185,9 +2193,9 @@ public:
         _material = material;
     }
 
-    std::pair<double, double> CoordenadasUV(const TPonto3D& p, const TRaio3D& raio) const override
+    TCoordenadasUV CoordenadasUV(const TPonto3D& p, const TRaio3D& raio) const override
     {
-        return std::pair<double, double>(0.0, 0.0);
+        return { 0.0, 0.0 };
     }
 
     // nos dois metodos abaixo, as notas de aula estavam bem diferentes
@@ -2356,9 +2364,9 @@ public:
         _material = material;
     }
 
-    std::pair<double, double> CoordenadasUV(const TPonto3D& p, const TRaio3D& raio) const override
+    TCoordenadasUV CoordenadasUV(const TPonto3D& p, const TRaio3D& raio) const override
     {
-        return std::pair<double, double>(0.0, 0.0);
+        return { 0.0, 0.0 };
     }
 
     // nos dois metodos abaixo, as notas de aula estavam bem diferentes
@@ -3229,12 +3237,12 @@ private:
     TCor Cor(const IEntidade3D& entidade, const TRaio3D& raio, double ti) const
     {   
         const TPonto3D pi = raio.Ponto(ti);
-        const std::pair<double, double> uv = entidade.CoordenadasUV(pi, raio);
+        const TCoordenadasUV uv = entidade.CoordenadasUV(pi, raio);
 
         const TMaterial& material = entidade.Material(raio);
-        const double kdR = material.KdR(uv.first, uv.second);
-        const double kdG = material.KdG(uv.first, uv.second);
-        const double kdB = material.KdB(uv.first, uv.second);
+        const double kdR = material.KdR(uv.u, uv.v);
+        const double kdG = material.KdG(uv.u, uv.v);
+        const double kdB = material.KdB(uv.u, uv.v);
         const TPonto3D kd { kdR, kdG, kdB };
         const TPonto3D ke { material.KeR(), material.KeG(), material.KeB() };
         const TPonto3D ka { material.KaR(), material.KaG(), material.KaB() };
