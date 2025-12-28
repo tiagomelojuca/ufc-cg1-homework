@@ -3474,7 +3474,7 @@ TFontePontual FabricaFontePontual()
 
 // ------------------------------------------------------------------------------------------------
 
-TCena3D FabricaCena()
+TCena3D FabricaCena1()
 {
     const TPonto3D p0 { 0.0, 0.0, 0.0 };
 
@@ -3496,16 +3496,129 @@ TCena3D FabricaCena()
     cena.Insere(FabricaParedeFrontal());
     cena.Insere(FabricaParedeLateralEsquerda());
     cena.Insere(FabricaTeto());
-    // cena.Insere(FabricaCilindro());
-    // cena.Insere(FabricaCone());
-    // cena.Insere(FabricaCubo());
-    cena.Insere(FabricaMalha());
-    // cena.Insere(FabricaEsfera());
+    cena.Insere(FabricaCilindro());
+    cena.Insere(FabricaCone());
+    cena.Insere(FabricaCubo());
+    cena.Insere(FabricaEsfera());
     cena.Insere(FabricaFontePontual());
 
     cena.PodeRenderizarMultiThread(false);
 
     return cena;
+}
+
+// ------------------------------------------------------------------------------------------------
+
+TCena3D FabricaCena2()
+{
+    const TPonto3D p0 { 0.0, 0.0, 0.0 };
+
+    const double wJanela = 60.0;
+    const double hJanela = 60.0;
+    const double dJanela = 30.0;
+    const uint16_t wCanvas = 500u;
+    const uint16_t hCanvas = 500u;
+    const TJanela janela { { 0.0, 0.0, -dJanela }, wJanela, hJanela, wCanvas, hCanvas };
+
+    TCena3D cena { p0, janela };
+    cena.BgColor({ 100u, 100u, 100u });
+    cena.IambR(0.3);
+    cena.IambG(0.3);
+    cena.IambB(0.3);
+
+    cena.Insere(FabricaChao());
+    cena.Insere(FabricaParedeLateralDireita());
+    cena.Insere(FabricaParedeFrontal());
+    cena.Insere(FabricaParedeLateralEsquerda());
+    cena.Insere(FabricaTeto());
+    cena.Insere(FabricaMalha());
+    cena.Insere(FabricaFontePontual());
+
+    cena.PodeRenderizarMultiThread(false);
+
+    return cena;
+}
+
+// ------------------------------------------------------------------------------------------------
+
+TCena3D FabricaCena3()
+{
+    const TPonto3D p0 { 0.0, 0.0, 0.0 };
+
+    const double wJanela = 30.0;
+    const double hJanela = 30.0;
+    const double dJanela = 30.0;
+    const uint16_t wCanvas = 250u;
+    const uint16_t hCanvas = 250u;
+    const TJanela janela { { 0.0, 0.0, -dJanela }, wJanela, hJanela, wCanvas, hCanvas };
+
+    TCena3D cena { p0, janela };
+    cena.BgColor({ 100u, 100u, 100u });
+    cena.IambR(0.3);
+    cena.IambG(0.3);
+    cena.IambB(0.3);
+
+    cena.Insere(FabricaChao());
+    cena.Insere(FabricaParedeLateralDireita());
+    cena.Insere(FabricaParedeFrontal());
+    cena.Insere(FabricaParedeLateralEsquerda());
+    cena.Insere(FabricaTeto());
+    cena.Insere(FabricaMalha());
+    cena.Insere(FabricaFontePontual());
+
+    cena.PodeRenderizarMultiThread(false);
+
+    return cena;
+}
+
+// ------------------------------------------------------------------------------------------------
+
+TCena3D FabricaCena4()
+{
+    const TPonto3D p0 { 0.0, 0.0, 0.0 };
+
+    const double wJanela = 15.0;
+    const double hJanela = 15.0;
+    const double dJanela = 30.0;
+    const uint16_t wCanvas = 125u;
+    const uint16_t hCanvas = 125u;
+    const TJanela janela { { 0.0, 0.0, -dJanela }, wJanela, hJanela, wCanvas, hCanvas };
+
+    TCena3D cena { p0, janela };
+    cena.BgColor({ 100u, 100u, 100u });
+    cena.IambR(0.3);
+    cena.IambG(0.3);
+    cena.IambB(0.3);
+
+    cena.Insere(FabricaChao());
+    cena.Insere(FabricaParedeLateralDireita());
+    cena.Insere(FabricaParedeFrontal());
+    cena.Insere(FabricaParedeLateralEsquerda());
+    cena.Insere(FabricaTeto());
+    cena.Insere(FabricaMalha());
+    cena.Insere(FabricaFontePontual());
+
+    cena.PodeRenderizarMultiThread(false);
+
+    return cena;
+}
+
+// ------------------------------------------------------------------------------------------------
+
+typedef TCena3D(*PtrFabricaCena)();
+
+std::unordered_map<std::string, PtrFabricaCena> FabricasCenas = {
+    { "NATAL", FabricaCena1 },
+    { "SPYRO", FabricaCena2 },
+    { "TESTE", FabricaCena3 },
+    { "MENOR", FabricaCena4 }
+};
+
+// ------------------------------------------------------------------------------------------------
+
+TCena3D FabricaCena()
+{
+    return FabricasCenas["MENOR"]();
 }
 
 // ------------------------------------------------------------------------------------------------
