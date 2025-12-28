@@ -417,10 +417,12 @@ public:
     double X() const { return _x; }
     double Y() const { return _y; }
     double Z() const { return _z; }
+    double P() const { return _p; }
 
     void X(double x) { _x = x; }
     void Y(double y) { _y = y; }
     void Z(double z) { _z = z; }
+    void P(double p) { _p = p == 0.0 ? 0 : 1; }
 
     TVetor4D& operator+=(const TVetor4D& outro)
     {
@@ -502,6 +504,11 @@ public:
     void ClampZ(double min, double max)
     {
         _z = std::clamp(_z, min, max);
+    }
+
+    bool EhPonto() const
+    {
+        return _p == 1;
     }
 
 protected:
