@@ -2091,10 +2091,17 @@ public:
         return new TMalha3D(*this);
     }
 
-    void Visita(std::function<void(const TSuperficieTriangular&)> FuncaoVisita)
+    void Visita(std::function<void(const TSuperficieTriangular&)> FuncaoVisita) const
     {
-        for (std::unique_ptr<IEntidade3D>& entidade : _entidades)
+        for (const std::unique_ptr<IEntidade3D>& entidade : _entidades)
         {
+            // possivel quirk de sptrs? o metodo eh const, o for ranged base exige
+            // que o unique_ptr seja const por isso, mas isso nao garante que o obj
+            // para o qual ele aponta eh const, diferente da semantica de raw ptrs,
+            // onde um const T* aponta para um objeto t const. Mas aqui, usamos
+            // o smart pointer const, e acessamos tranquilamente t como nao-const,
+            // ou seja, const unique_ptr<T> nao faz o mesmo efeito de const T*
+            // estudar melhor depois
             auto& triangulo = static_cast<TSuperficieTriangular&>(*entidade.get());
             FuncaoVisita(triangulo);
         }
