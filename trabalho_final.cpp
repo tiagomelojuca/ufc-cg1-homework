@@ -3076,6 +3076,17 @@ private:
 
 // ------------------------------------------------------------------------------------------------
 
+class TLeitorCena3D
+{
+public:
+    TLeitorCena3D(const std::string& caminho) : _is(caminho) {}
+
+private:
+    std::ifstream _is;
+};
+
+// ------------------------------------------------------------------------------------------------
+
 class TJanela
 {
 public:
