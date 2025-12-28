@@ -1879,6 +1879,19 @@ public:
         return { u, v };
     }
 
+    const TPonto3D& P1() const
+    {
+        return _p1;
+    }
+    const TPonto3D& P2() const
+    {
+        return _p2;
+    }
+    const TPonto3D& P3() const
+    {
+        return _p3;
+    }
+
     void CoordenadasUV1(TCoordenadasUV uv)
     {
         _uv1 = uv;
@@ -2139,6 +2152,45 @@ public:
             auto& triangulo = static_cast<TSuperficieTriangular&>(*entidade.get());
             triangulo.Traslada(t);
         }
+    }
+
+    TPonto3D Centro() const
+    {
+        if (_entidades.empty())
+        {
+            return TPonto3D { 0.0, 0.0, 0.0 };
+        }
+
+        auto& trianguloRef = static_cast<TSuperficieTriangular&>(*_entidades.front().get());
+        TPonto3D bbMin = trianguloRef.P1();
+        TPonto3D bbMax = trianguloRef.P1();
+
+        auto ComputaVertice = [&bbMin, &bbMax](const TPonto3D& v)
+        {
+            bbMin = TPonto3D(
+                std::min(bbMin.X(), v.X()),
+                std::min(bbMin.Y(), v.Y()),
+                std::min(bbMin.Z(), v.Z())
+            );
+
+            bbMax = TPonto3D(
+                std::max(bbMax.X(), v.X()),
+                std::max(bbMax.Y(), v.Y()),
+                std::max(bbMax.Z(), v.Z())
+            );
+        };
+
+        Visita([ComputaVertice](const TSuperficieTriangular& t) {
+            ComputaVertice(t.P1());
+            ComputaVertice(t.P2());
+            ComputaVertice(t.P3());
+        });
+
+        return TPonto3D {
+            (bbMin.X() + bbMax.X()) * 0.5,
+            (bbMin.Y() + bbMax.Y()) * 0.5,
+            (bbMin.Z() + bbMax.Z()) * 0.5
+        };
     }
 
     bool DeveRotularTriangulosInseridosAutomaticamente() const
