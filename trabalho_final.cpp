@@ -3558,11 +3558,6 @@ TCena3D FabricaCena3()
     cena.IambG(0.3);
     cena.IambB(0.3);
 
-    cena.Insere(FabricaChao());
-    cena.Insere(FabricaParedeLateralDireita());
-    cena.Insere(FabricaParedeFrontal());
-    cena.Insere(FabricaParedeLateralEsquerda());
-    cena.Insere(FabricaTeto());
     cena.Insere(FabricaMalha());
     cena.Insere(FabricaFontePontual());
 
@@ -3590,11 +3585,11 @@ TCena3D FabricaCena4()
     cena.IambG(0.3);
     cena.IambB(0.3);
 
-    cena.Insere(FabricaChao());
-    cena.Insere(FabricaParedeLateralDireita());
-    cena.Insere(FabricaParedeFrontal());
-    cena.Insere(FabricaParedeLateralEsquerda());
-    cena.Insere(FabricaTeto());
+    // cena.Insere(FabricaChao());
+    // cena.Insere(FabricaParedeLateralDireita());
+    // cena.Insere(FabricaParedeFrontal());
+    // cena.Insere(FabricaParedeLateralEsquerda());
+    // cena.Insere(FabricaTeto());
     cena.Insere(FabricaMalha());
     cena.Insere(FabricaFontePontual());
 
@@ -3607,7 +3602,7 @@ TCena3D FabricaCena4()
 
 typedef TCena3D(*PtrFabricaCena)();
 
-std::unordered_map<std::string, PtrFabricaCena> FabricasCenas = {
+std::unordered_map<std::string, PtrFabricaCena> FabricasCenasPreDefinidas = {
     { "NATAL", FabricaCena1 },
     { "SPYRO", FabricaCena2 },
     { "TESTE", FabricaCena3 },
@@ -3618,7 +3613,7 @@ std::unordered_map<std::string, PtrFabricaCena> FabricasCenas = {
 
 TCena3D FabricaCena()
 {
-    return FabricasCenas["MENOR"]();
+    return FabricasCenasPreDefinidas["MENOR"]();
 }
 
 // ------------------------------------------------------------------------------------------------
