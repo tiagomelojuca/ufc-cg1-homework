@@ -1881,7 +1881,8 @@ public:
         const double dn = raio.Direcao().Dot(_n);
         if (dn != 0.0)
         {
-            intersecoes.push_back(-(_n.Dot(raio.Origem() - _p) / dn));
+            const double t = -(_n.Dot(raio.Origem() - _p) / dn);
+            intersecoes.push_back(t);
         }
 
         return intersecoes;
