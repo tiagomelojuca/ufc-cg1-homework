@@ -1633,7 +1633,170 @@ public:
 
     virtual TVetor3D Normal(const TPonto3D& p, const TRaio3D& raio) const = 0;
     virtual std::vector<double> Intersecoes(const TRaio3D& raio) const = 0;
+
+    virtual void Transforma(const TMatriz<double>& matriz4x4) = 0;
 };
+
+// ------------------------------------------------------------------------------------------------
+
+namespace TransformacoesLineares
+{
+    // NOTA: as transformacoes sobre entidades 3D foram colocadas neste namespace
+    //       por simplicidade, mas o ideal provavelmente seria ter uma classe de
+    //       Transformer (transformador de entidades 3d), que empilhasse as operacoes
+    //       a serem aplicadas, otimizando o processamento ao fazer somente 1 produto
+    //       de matrizes (pela matriz combinada das transformacoes)
+
+    // A rigor, translacao nao eh uma TL, mas usamos coordenadas homogeneas
+    // a fim de poder trata-la como tal
+    void Translacao(IEntidade3D& entidade, const TPonto3D& t)
+    {
+        TMatriz<double> T(4u, 4u, { { 1.0, 0.0, 0.0, t.X() },
+                                    { 0.0, 1.0, 0.0, t.Y() },
+                                    { 0.0, 0.0, 1.0, t.Z() },
+                                    { 0.0, 0.0, 0.0,   1.0 } });
+        entidade.Transforma(T);
+    }
+
+    void RotacaoEmTornoDeX(IEntidade3D& entidade, double teta)
+    {
+        TMatriz<double> Rx(4u, 4u, { { 1.0,       0.0,        0.0, 0.0 },
+                                     { 0.0, cos(teta), -sin(teta), 0.0 },
+                                     { 0.0, sin(teta),  cos(teta), 0.0 },
+                                     { 0.0,       0.0,        0.0, 1.0 } });
+        entidade.Transforma(Rx);
+    }
+
+    void RotacaoEmTornoDeY(IEntidade3D& entidade, double teta)
+    {
+        TMatriz<double> Ry(4u, 4u, { {  cos(teta), 0.0, sin(teta), 0.0 },
+                                     {        0.0, 1.0,       0.0, 0.0 },
+                                     { -sin(teta), 0.0, cos(teta), 0.0 },
+                                     {        0.0, 0.0,       0.0, 1.0 } });
+        entidade.Transforma(Ry);
+    }
+
+    void RotacaoEmTornoDeZ(IEntidade3D& entidade, double teta)
+    {
+        TMatriz<double> Rz(4u, 4u, { { cos(teta), -sin(teta), 0.0, 0.0 },
+                                     { sin(teta),  cos(teta), 0.0, 0.0 },
+                                     {       0.0,        0.0, 1.0, 0.0 },
+                                     {       0.0,        0.0, 0.0, 1.0 } });
+        entidade.Transforma(Rz);
+    }
+
+    void Rotacao(IEntidade3D& entidade, const TVetor3D& u, double teta)
+    {
+        // ToDo
+    }
+
+    void Escala(IEntidade3D& entidade, const TPonto3D& s)
+    {
+        TMatriz<double> S(4u, 4u, { { s.X(),   0.0,   0.0, 0.0 },
+                                    {   0.0, s.Y(),   0.0, 0.0 },
+                                    {   0.0,   0.0, s.Z(), 0.0 },
+                                    {   0.0,   0.0,   0.0, 1.0 } });
+        entidade.Transforma(S);
+    }
+
+    void Cisalhamento(IEntidade3D& entidade, double hXY, double hXZ, double hYX, double hYZ, double hZX, double hZY)
+    {
+        TMatriz<double> H(4u, 4u, { { 1.0, hXY, hXZ, 0.0 },
+                                    { hYX, 1.0, hYZ, 0.0 },
+                                    { hZX, hZY, 1.0, 0.0 },
+                                    { 0.0, 0.0, 0.0, 1.0 } });
+        entidade.Transforma(H);
+    }
+
+    void ReflexaoEmTornoDeXY(IEntidade3D& entidade)
+    {
+        TMatriz<double> R(4u, 4u, { { 1.0, 0.0,  0.0, 0.0 },
+                                    { 0.0, 1.0,  0.0, 0.0 },
+                                    { 0.0, 0.0, -1.0, 0.0 },
+                                    { 0.0, 0.0,  0.0, 1.0 } });
+        entidade.Transforma(R);
+    }
+
+    void ReflexaoEmTornoDeXZ(IEntidade3D& entidade)
+    {
+        TMatriz<double> R(4u, 4u, { { 1.0,  0.0, 0.0, 0.0 },
+                                    { 0.0, -1.0, 0.0, 0.0 },
+                                    { 0.0,  0.0, 1.0, 0.0 },
+                                    { 0.0,  0.0, 0.0, 1.0 } });
+        entidade.Transforma(R);
+    }
+
+    void ReflexaoEmTornoDeYZ(IEntidade3D& entidade)
+    {
+        TMatriz<double> R(4u, 4u, { { -1.0, 0.0, 0.0, 0.0 },
+                                    {  0.0, 1.0, 0.0, 0.0 },
+                                    {  0.0, 0.0, 1.0, 0.0 },
+                                    {  0.0, 0.0, 0.0, 1.0 } });
+        entidade.Transforma(R);
+    }
+
+    void Reflexao(IEntidade3D& entidade, const TVetor3D& n, const TPonto3D& Q)
+    {
+        const TVetor3D _n = n.Normalizado();
+        const double a = _n.X();
+        const double b = _n.Y();
+        const double c = _n.Z();
+
+        TMatriz<double> Tvai(4u, 4u, { { 1.0, 0.0, 0.0, -Q.X() },
+                                       { 0.0, 1.0, 0.0, -Q.Y() },
+                                       { 0.0, 0.0, 1.0, -Q.Z() },
+                                       { 0.0, 0.0, 0.0,    1.0 } });
+
+        TMatriz<double> Rorigem(4u, 4u, { { 1.0 - 2.0 * a * a,      -2.0 * a * b,      -2.0 * a * c, 0.0 },
+                                          {      -2.0 * b * a, 1.0 - 2.0 * b * b,      -2.0 * b * c, 0.0 },
+                                          {      -2.0 * c * a,      -2.0 * c * b, 1.0 - 2.0 * c * c, 0.0 },
+                                          {               0.0,               0.0,               0.0, 1.0 } });
+
+        TMatriz<double> Tvolta(4u, 4u, { { 1.0, 0.0, 0.0, Q.X() },
+                                         { 0.0, 1.0, 0.0, Q.Y() },
+                                         { 0.0, 0.0, 1.0, Q.Z() },
+                                         { 0.0, 0.0, 0.0,   1.0 } });
+
+        TMatriz<double> R = Tvolta.Produto(Rorigem.Produto(Tvai));
+
+        entidade.Transforma(R);
+    }
+
+    // Helpers de conveniencia pra nao ter que tratar com TVetor4D diretamente
+    bool Transforma(TPonto3D& p, const TMatriz<double>& matriz4x4)
+    {
+        bool transformou = false;
+
+        const TMatriz<double> P = FuncoesGerais::Vec2Mtx(p);
+        const TMatriz<double> P_ = matriz4x4.Produto(P);
+        const TVetor4D p_ = FuncoesGerais::Mtx2Vec(P_);
+
+        if (p_.EhPonto())
+        {
+            p = p_;
+            transformou = true;
+        }
+
+        return transformou;
+    }
+
+    bool Transforma(TVetor3D& v, const TMatriz<double>& matriz4x4)
+    {
+        bool transformou = false;
+
+        const TMatriz<double> V = FuncoesGerais::Vec2Mtx(v);
+        const TMatriz<double> V_ = matriz4x4.Produto(V);
+        const TVetor4D v_ = FuncoesGerais::Mtx2Vec(V_);
+
+        if (!v_.EhPonto())
+        {
+            v = v_;
+            transformou = true;
+        }
+
+        return transformou;
+    }
+}
 
 // ------------------------------------------------------------------------------------------------
 
@@ -1792,6 +1955,14 @@ public:
         _entidades.push_back(std::unique_ptr<IEntidade3D>(entidade.Copia()));
     }
 
+    void Transforma(const TMatriz<double>& matriz4x4) override
+    {
+        for (std::unique_ptr<IEntidade3D>& entidade : _entidades)
+        {
+            entidade->Transforma(matriz4x4);
+        }
+    }
+
 protected:
     IEntidade3D* EntidadeInterceptada(const TRaio3D& raio) const
     {
@@ -1896,6 +2067,11 @@ public:
         return intersecoes;
     }
 
+    void Transforma(const TMatriz<double>& matriz4x4) override
+    {
+        // ToDo
+    }
+
 protected:
     std::string _rotulo;
     TMaterial _material;
@@ -1937,6 +2113,11 @@ public:
         }
 
         return intersecoes;
+    }
+
+    void Transforma(const TMatriz<double>& matriz4x4) override
+    {
+        // ToDo
     }
 
 private:
@@ -2033,6 +2214,11 @@ public:
         }
 
         return intersecoes;
+    }
+
+    void Transforma(const TMatriz<double>& matriz4x4) override
+    {
+        // ToDo
     }
 
 private:
@@ -2351,6 +2537,11 @@ public:
         return intersecoes;
     }
 
+    void Transforma(const TMatriz<double>& matriz4x4) override
+    {
+        // ToDo
+    }
+
 private:
     std::string _rotulo;
     TMaterial _material;
@@ -2452,6 +2643,11 @@ public:
         }
 
         return intersecoes;
+    }
+
+    void Transforma(const TMatriz<double>& matriz4x4) override
+    {
+        // ToDo
     }
 
     const TPonto3D& CentroBase() const
@@ -2631,6 +2827,11 @@ public:
         std::sort(intersecoes.begin(), intersecoes.end());
 
         return intersecoes;
+    }
+
+    void Transforma(const TMatriz<double>& matriz4x4) override
+    {
+        // ToDo
     }
 
     const TPonto3D& CentroBase() const
