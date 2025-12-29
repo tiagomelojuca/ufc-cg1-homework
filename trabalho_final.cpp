@@ -412,24 +412,24 @@ class TVetor4D
 {
 public:
     TVetor4D() = default;
-    TVetor4D(double x, double y, double z, bool pt = true) : _x(x), _y(y), _z(z), _p(pt) {}
+    TVetor4D(double x, double y, double z, bool pt = true) : _x(x), _y(y), _z(z), _w(pt) {}
 
     double X() const { return _x; }
     double Y() const { return _y; }
     double Z() const { return _z; }
-    double P() const { return _p; }
+    double W() const { return _w; }
 
     void X(double x) { _x = x; }
     void Y(double y) { _y = y; }
     void Z(double z) { _z = z; }
-    void P(double p) { _p = p == 0.0 ? 0 : 1; } // deve ser suficiente pra tratar imprecisoes de PF
+    void W(double w) { _w = w == 0.0 ? 0 : 1; } // deve ser suficiente pra tratar imprecisoes de PF
 
     TVetor4D& operator+=(const TVetor4D& outro)
     {
         _x += outro._x;
         _y += outro._y;
         _z += outro._z;
-        _p += outro._p;
+        _w += outro._w;
         return *this;
     }
 
@@ -445,7 +445,7 @@ public:
         _x *= k;
         _y *= k;
         _z *= k;
-        _p *= k;
+        _w *= k;
         return *this;
     }
 
@@ -476,7 +476,7 @@ public:
         _x /= k;
         _y /= k;
         _z /= k;
-        _p /= k;
+        _w /= k;
         return *this;
     }
 
@@ -508,14 +508,14 @@ public:
 
     bool EhPonto() const
     {
-        return _p == 1;
+        return _w == 1;
     }
 
 protected:
     double _x = 0.0;
     double _y = 0.0;
     double _z = 0.0;
-    int8_t _p =   1;
+    int8_t _w =   1;
 };
 
 // ------------------------------------------------------------------------------------------------
@@ -1120,7 +1120,7 @@ namespace FuncoesGerais
         TMatriz<double> V { 4u, 1u, { { v.X() },
                                       { v.Y() },
                                       { v.Z() },
-                                      { v.P() } }};
+                                      { v.W() } }};
         return V;
     }
     TVetor4D Mtx2Vec(const TMatriz<double>& mtx)
@@ -1132,7 +1132,7 @@ namespace FuncoesGerais
             v.X(mtx[1][1]);
             v.Y(mtx[2][1]);
             v.Z(mtx[3][1]);
-            v.P(mtx[4][1]);
+            v.W(mtx[4][1]);
         }
 
         return v;
