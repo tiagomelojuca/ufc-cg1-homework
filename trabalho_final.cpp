@@ -2026,15 +2026,6 @@ public:
         return intersecoes;
     }
 
-    void Traslada(const TPonto3D& t)
-    {
-        _p1 += t;
-        _p2 += t;
-        _p3 += t;
-
-        AtualizaDados();
-    }
-
 private:
     void AtualizaDados()
     {
@@ -2230,15 +2221,6 @@ public:
                 ss << Rotulo() << "_TRIANGULO_" << _entidades.size();
                 trianguloInserido.Rotulo(ss.str());
             }
-        }
-    }
-
-    void Traslada(const TPonto3D& t)
-    {
-        for (std::unique_ptr<IEntidade3D>& entidade : _entidades)
-        {
-            auto& triangulo = static_cast<TSuperficieTriangular&>(*entidade.get());
-            triangulo.Traslada(t);
         }
     }
 
@@ -3691,7 +3673,6 @@ TMalha3D FabricaMalha()
     TMalha3D malha;
     malha.Rotulo("MALHA_1");
     TLeitorMalha3D::Carrega(ResTbl::OBJ_SPYRO, malha);
-    malha.Traslada({ 0.0, 0.0, -10.0 });
 
     return malha;
 }
