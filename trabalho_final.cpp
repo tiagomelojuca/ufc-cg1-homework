@@ -1137,6 +1137,14 @@ namespace FuncoesGerais
 
         return v;
     }
+    double Deg2Rad(double deg)
+    {
+        return deg * M_PI / 180.0;
+    }
+    double Rad2Deg(double rad)
+    {
+        return 180.0 * rad / M_PI;
+    }
 
     std::unique_ptr<IArquivoSaida> FabricaArquivo(
         EFormatoImagem formato,
