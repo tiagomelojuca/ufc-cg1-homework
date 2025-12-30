@@ -3431,6 +3431,29 @@ public:
         return *this;
     }
 
+    TCamera& ZoomIn()
+    {
+        _wJanela /= _fatorZoom;
+        _hJanela /= _fatorZoom;
+        Init();
+
+        return *this;
+    }
+    TCamera& ZoomOut()
+    {
+        _wJanela *= _fatorZoom;
+        _hJanela *= _fatorZoom;
+        Init();
+
+        return *this;
+    }
+    TCamera& FatorZoom(double fz)
+    {
+        _fatorZoom = fz;
+
+        return *this;
+    }
+
     double Largura() const { return _wJanela; }
     double Altura() const { return _hJanela; }
     uint16_t LarguraCanvas() const { return _wCanvas; }
@@ -3500,6 +3523,7 @@ private:
 
     double _dx = 0.0;
     double _dy = 0.0;
+    double _fatorZoom = 1.25;
 };
 
 // ------------------------------------------------------------------------------------------------
@@ -3519,6 +3543,7 @@ public:
     TCena3D(const TPonto3D& origem, const TCamera& camera) : _camera(camera), _p0(origem) {}
 
     const TCamera& Camera() const { return _camera; }
+    TCamera& Camera() { return _camera; }
     void Camera(const TCamera& camera) { _camera = camera; }
 
     const TPonto3D& Origem() const { return _p0; }
@@ -4237,6 +4262,8 @@ private:
 
         _hWnd = CriaJanelaPrincipal();
         _hWndBtnRenderScene = CriaBotao(_hWnd, _IDC_BTN_RENDER_SCENE, L"Renderiza Cena", 16, 16, 128, 32);
+        _hWndBtnZoomIn      = CriaBotao(_hWnd, _IDC_BTN_ZOOM_IN,      L"+", 16, 64, 56, 32);
+        _hWndBtnZoomOut     = CriaBotao(_hWnd, _IDC_BTN_ZOOM_OUT,     L"-", 88, 64, 56, 32);
 
         return _hWnd != nullptr && _hWndBtnRenderScene != nullptr;
     }
@@ -4301,6 +4328,16 @@ private:
 
         InvalidateRect(hWndJanelaPrincipal, NULL, true);
         UpdateWindow(hWndJanelaPrincipal);
+    }
+    static void EvBtnZoomIn(HWND hWndJanelaPrincipal)
+    {
+        Globals::Instancia().Cena().Camera().ZoomIn();
+        EvBtnRenderScene(hWndJanelaPrincipal);
+    }
+    static void EvBtnZoomOut(HWND hWndJanelaPrincipal)
+    {
+        Globals::Instancia().Cena().Camera().ZoomOut();
+        EvBtnRenderScene(hWndJanelaPrincipal);
     }
 
     static void RenderScene(HDC hdc)
@@ -4432,9 +4469,19 @@ private:
     {
         if (HIWORD(wParam) == BN_CLICKED)
         {
-            if (LOWORD(wParam) == _IDC_BTN_RENDER_SCENE)
+            const auto idBtn = LOWORD(wParam);
+
+            if (idBtn == _IDC_BTN_RENDER_SCENE)
             {
                 EvBtnRenderScene(hWnd);
+            }
+            else if (idBtn == _IDC_BTN_ZOOM_IN)
+            {
+                EvBtnZoomIn(hWnd);
+            }
+            else if (idBtn == _IDC_BTN_ZOOM_OUT)
+            {
+                EvBtnZoomOut(hWnd);
             }
         }
 
@@ -4470,6 +4517,8 @@ private:
     WNDCLASS _wndCls;
 
     HWND _hWndBtnRenderScene; static constexpr int _IDC_BTN_RENDER_SCENE = 1;
+    HWND _hWndBtnZoomIn;      static constexpr int _IDC_BTN_ZOOM_IN      = 2;
+    HWND _hWndBtnZoomOut;     static constexpr int _IDC_BTN_ZOOM_OUT     = 3;
 
     static bool rendering;
     static std::wstring pickedObject;
