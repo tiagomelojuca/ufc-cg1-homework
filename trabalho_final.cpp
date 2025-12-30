@@ -4111,25 +4111,13 @@ namespace Mocks
 
 // ------------------------------------------------------------------------------------------------
 
-std::unique_ptr<IArquivoSaida> FabricaArquivo(
-    const std::string& nome,
-    EFormatoImagem formato,
-    const TCena3D& cena
-)
+bool RenderizaImagemParaArquivo(TCena3D& cena)
 {
-    const TCamera camera = cena.Camera();
+    const TCamera& camera = cena.Camera();
 
-    return FuncoesGerais::FabricaArquivo(
-        formato, nome, camera.LarguraCanvas(), camera.AlturaCanvas()
+    const std::unique_ptr<IArquivoSaida> arq = FuncoesGerais::FabricaArquivo(
+        EFormatoImagem::BMP, "a", camera.LarguraCanvas(), camera.AlturaCanvas()
     );
-}
-
-// ------------------------------------------------------------------------------------------------
-
-bool RenderizaImagem()
-{
-    TCena3D cena = Mocks::FabricaCena();
-    const std::unique_ptr<IArquivoSaida> arq = FabricaArquivo("a", EFormatoImagem::BMP, cena);
 
     const bool erro = !arq->Aberto();
     if (!erro)
