@@ -3818,334 +3818,296 @@ private:
 
 // ------------------------------------------------------------------------------------------------
 
-TMaterial FabricaMaterialHomogeneo(const TVetor3D& k, double m)
+namespace Mocks
 {
-    TMaterial material;
-
-    material.KdR(k.X());
-    material.KdG(k.Y());
-    material.KdB(k.Z());
-    material.KeR(k.X());
-    material.KeG(k.Y());
-    material.KeB(k.Z());
-    material.KaR(k.X());
-    material.KaG(k.Y());
-    material.KaB(k.Z());
-    material.M(m);
-
-    return material;
-}
-
-// ------------------------------------------------------------------------------------------------
-
-TPlano FabricaChao()
-{
-    TMaterial material;
-    material.KdR(0.0);
-    material.KdG(0.0);
-    material.KdB(0.0);
-    material.KeR(0.0);
-    material.KeG(0.0);
-    material.KeB(0.0);
-    material.KaR(0.0);
-    material.KaG(0.0);
-    material.KaB(0.0);
-    material.M(1.0);
-    material.CarregaTextura(ResTbl::TEX_MADEIRA);
-    material.Textura()->K(30.0);
-
-    TPlano planoChao { { 0.0, -150.0, 0.0 }, { 0.0, 1.0, 0.0 } };
-    planoChao.Rotulo("PLANO_CHAO");
-    planoChao.Material(material);
-
-    return planoChao;
-}
-
-// ------------------------------------------------------------------------------------------------
-
-TPlano FabricaParedeLateralDireita()
-{
-    TPlano planoParedeDireita { { 200.0, -150.0, 0.0 }, { -1.0, 0.0, 0.0 } };
-    planoParedeDireita.Rotulo("PLANO_PAREDE_LATERAL_DIR");
-    planoParedeDireita.Material(FabricaMaterialHomogeneo({ 0.686, 0.933, 0.933 }, 1.0));
-
-    return planoParedeDireita;
-}
-
-// ------------------------------------------------------------------------------------------------
-
-TPlano FabricaParedeFrontal()
-{
-    TPlano planoParedeFrontal { { 200.0, -150.0, -400.0 }, { 0.0, 0.0, 1.0 } };
-    planoParedeFrontal.Rotulo("PLANO_PAREDE_FRONTAL");
-    planoParedeFrontal.Material(FabricaMaterialHomogeneo({ 0.686, 0.933, 0.933 }, 1.0));
-
-    return planoParedeFrontal;
-}
-
-// ------------------------------------------------------------------------------------------------
-
-TPlano FabricaParedeLateralEsquerda()
-{
-    TPlano planoParedeEsquerda { { -200.0, -150.0, 0.0 }, { 1.0, 0.0, 0.0 } };
-    planoParedeEsquerda.Rotulo("PLANO_PAREDE_LATERAL_ESQ");
-    planoParedeEsquerda.Material(FabricaMaterialHomogeneo({ 0.686, 0.933, 0.933 }, 1.0));
-
-    return planoParedeEsquerda;
-}
-
-// ------------------------------------------------------------------------------------------------
-
-TPlano FabricaTeto()
-{
-    TPlano planoTeto { { 0.0, 150.0, 0.0 }, { 0.0, -1.0, 0.0 } };
-    planoTeto.Rotulo("PLANO_TETO");
-    planoTeto.Material(FabricaMaterialHomogeneo({ 0.933, 0.933, 0.933 }, 1.0));
-
-    return planoTeto;
-}
-
-// ------------------------------------------------------------------------------------------------
-
-TCilindro FabricaCilindro()
-{
-    const TPonto3D cBaseCilindro { 0.0, -150.0, -200.0 };
-    const double rBaseCilindro = 5.0;
-    const double hCilindro = 90.0;
-    const TVetor3D dCilindro { 0.0, 1.0, 0.0 };
-
-    TCilindro cilindro { cBaseCilindro, rBaseCilindro, hCilindro, dCilindro };
-    cilindro.Rotulo("CILINDRO_1");
-    cilindro.Material(FabricaMaterialHomogeneo({ 0.824, 0.706, 0.549 }, 10.0));
-
-    return cilindro;
-}
-
-// ------------------------------------------------------------------------------------------------
-
-TCone FabricaCone()
-{
-    const TPonto3D cBaseCone { 0.0, -60.0, -200.0 };
-    const double rBaseCone = 90.0;
-    const double hCone = 150.0;
-    const TVetor3D& dCone = { 0.0, 1.0, 0.0 };
-
-    TCone cone { cBaseCone, rBaseCone, hCone, dCone };
-    cone.Rotulo("CONE_1");
-    cone.Material(FabricaMaterialHomogeneo({ 0.0, 1.0, 0.498 }, 10.0));
-
-    return cone;
-}
-
-// ------------------------------------------------------------------------------------------------
-
-TCubo FabricaCubo()
-{
-    TCubo cubo { { 0.0, -150.0, -165.0 }, 40.0 };
-    cubo.Rotulo("CUBO_1");
-    cubo.Material(FabricaMaterialHomogeneo({ 1.0, 0.078, 0.576 }, 10.0));
-
-    return cubo;
-}
-
-// ------------------------------------------------------------------------------------------------
-
-TMalha3D FabricaMalha()
-{
-    TMalha3D malha;
-    malha.Rotulo("MALHA_1");
-    TLeitorMalha3D::Carrega(ResTbl::OBJ_SPYRO, malha);
-
-    return malha;
-}
-
-// ------------------------------------------------------------------------------------------------
-
-TEsfera FabricaEsfera()
-{
-    TEsfera esfera { { 0.0, 95.0, -200.0 }, 5.0 };
-    esfera.Rotulo("ESFERA_1");
-    esfera.Material(FabricaMaterialHomogeneo({ 0.854, 0.647, 0.125 }, 10.0));
-
-    return esfera;
-}
-
-// ------------------------------------------------------------------------------------------------
-
-TFontePontual FabricaFontePontual()
-{
-    return { { -100.0, 140.0, -20.0 }, { 0.7, 0.7, 0.7 } };
-}
-
-// ------------------------------------------------------------------------------------------------
-
-TCamera FabricaCamera()
-{
-    // Constroi uma camera identidade (espaco de camera = espaco de mundo),
-    // equivalente a que viemos usando desde o trabalho 1
-
-    return TCamera()
-            .Projecao(TCamera::EProjecao::PERSPECTIVA)
-            .Janela(60.0, 60.0)
-            .DistanciaFocal(30.0)
-            .Viewport(500u, 500u)
-            .OlhoObservador({ 0.0, 0.0, 0.0 })
-            .Visada({ 0.0, 0.0, -1.0 })
-            .Cima({ 0.0, 1.0, 0.0 })
-            .Init();
-}
-
-// ------------------------------------------------------------------------------------------------
-
-TCamera FabricaCameraOrtograficaComArtefatos()
-{
-    return TCamera()
-            .Projecao(TCamera::EProjecao::PARALELA)
-            .Janela(500.0, 500.0)
-            .DistanciaFocal(0.0)
-            .Viewport(500u, 500u)
-            .OlhoObservador({ 0.0, 0.0, 0.0 })
-            .Visada({ 0.0, 0.0, -1.0 })
-            .Cima({ 0.0, 1.0, 0.0 })
-            .Init();
-}
-
-// ------------------------------------------------------------------------------------------------
-
-TCamera FabricaCameraIsometricaComArtefatos()
-{
-    return TCamera()
-            .Projecao(TCamera::EProjecao::PARALELA)
-            .Janela(500.0, 500.0)
-            .DistanciaFocal(0.0)
-            .Viewport(500u, 500u)
-            .OlhoObservador({ 5.0, 5.0, 5.0 })
-            .Visada({ 0.0, 0.0, 0.0 })
-            .Cima({ 0.0, 1.0, 0.0 })
-            .Init();
-}
-
-// ------------------------------------------------------------------------------------------------
-
-TCena3D FabricaCena1()
-{
-    const TPonto3D p0 { 0.0, 0.0, 0.0 };
-
-    TCena3D cena { p0, FabricaCameraOrtograficaComArtefatos() };
-    cena.BgColor({ 100u, 100u, 100u });
-    cena.IambR(0.3);
-    cena.IambG(0.3);
-    cena.IambB(0.3);
-
-    cena.Insere(FabricaChao());
-    cena.Insere(FabricaParedeLateralDireita());
-    cena.Insere(FabricaParedeFrontal());
-    cena.Insere(FabricaParedeLateralEsquerda());
-    cena.Insere(FabricaTeto());
-    cena.Insere(FabricaCilindro());
-    cena.Insere(FabricaCone());
-    cena.Insere(FabricaCubo());
-    cena.Insere(FabricaEsfera());
-    cena.Insere(FabricaFontePontual());
-
-    cena.PodeRenderizarMultiThread(false);
-
-    return cena;
-}
-
-// ------------------------------------------------------------------------------------------------
-
-TCena3D FabricaCena2()
-{
-    const TPonto3D p0 { 0.0, 0.0, 0.0 };
-
-    TCena3D cena { p0, FabricaCamera() };
-    cena.BgColor({ 100u, 100u, 100u });
-    cena.IambR(0.3);
-    cena.IambG(0.3);
-    cena.IambB(0.3);
-
-    cena.Insere(FabricaChao());
-    cena.Insere(FabricaParedeLateralDireita());
-    cena.Insere(FabricaParedeFrontal());
-    cena.Insere(FabricaParedeLateralEsquerda());
-    cena.Insere(FabricaTeto());
-    cena.Insere(FabricaMalha());
-    cena.Insere(FabricaFontePontual());
-
-    cena.PodeRenderizarMultiThread(false);
-
-    return cena;
-}
-
-// ------------------------------------------------------------------------------------------------
-
-TCena3D FabricaCena3()
-{
-    const TPonto3D p0 { 0.0, 0.0, 0.0 };
-
-    TCena3D cena { p0, FabricaCamera().Janela(30.0, 30.0).Viewport(250u, 250u).Init() };
-    cena.BgColor({ 100u, 100u, 100u });
-    cena.IambR(0.3);
-    cena.IambG(0.3);
-    cena.IambB(0.3);
-
-    cena.Insere(FabricaChao());
-    cena.Insere(FabricaParedeLateralDireita());
-    cena.Insere(FabricaParedeFrontal());
-    cena.Insere(FabricaParedeLateralEsquerda());
-    cena.Insere(FabricaTeto());
-    cena.Insere(FabricaMalha());
-    cena.Insere(TFontePontual { { -4.0, 4.0, 0.0 }, { 0.7, 0.7, 0.7 } });
-    // cena.Insere(FabricaFontePontual());
-
-    cena.PodeRenderizarMultiThread(false);
-
-    return cena;
-}
-
-// ------------------------------------------------------------------------------------------------
-
-TCena3D FabricaCena4()
-{
-    const TPonto3D p0 { 0.0, 0.0, 0.0 };
-
-    TCena3D cena { p0, FabricaCamera().Janela(15.0, 15.0).Viewport(125u, 125u).Init() };
-    cena.BgColor({ 100u, 100u, 100u });
-    cena.IambR(0.3);
-    cena.IambG(0.3);
-    cena.IambB(0.3);
-
-    // cena.Insere(FabricaChao());
-    // cena.Insere(FabricaParedeLateralDireita());
-    // cena.Insere(FabricaParedeFrontal());
-    // cena.Insere(FabricaParedeLateralEsquerda());
-    // cena.Insere(FabricaTeto());
-    cena.Insere(FabricaMalha());
-    cena.Insere(FabricaFontePontual());
-
-    cena.PodeRenderizarMultiThread(false);
-
-    return cena;
-}
-
-// ------------------------------------------------------------------------------------------------
-
-typedef TCena3D(*PtrFabricaCena)();
-
-std::unordered_map<std::string, PtrFabricaCena> FabricasCenasPreDefinidas = {
-    { "NATAL", FabricaCena1 },
-    { "SPYRO", FabricaCena2 },
-    { "TESTE", FabricaCena3 },
-    { "MENOR", FabricaCena4 }
+    TMaterial FabricaMaterialHomogeneo(const TVetor3D& k, double m)
+    {
+        TMaterial material;
+
+        material.KdR(k.X());
+        material.KdG(k.Y());
+        material.KdB(k.Z());
+        material.KeR(k.X());
+        material.KeG(k.Y());
+        material.KeB(k.Z());
+        material.KaR(k.X());
+        material.KaG(k.Y());
+        material.KaB(k.Z());
+        material.M(m);
+
+        return material;
+    }
+
+    TPlano FabricaChao()
+    {
+        TMaterial material;
+        material.KdR(0.0);
+        material.KdG(0.0);
+        material.KdB(0.0);
+        material.KeR(0.0);
+        material.KeG(0.0);
+        material.KeB(0.0);
+        material.KaR(0.0);
+        material.KaG(0.0);
+        material.KaB(0.0);
+        material.M(1.0);
+        material.CarregaTextura(ResTbl::TEX_MADEIRA);
+        material.Textura()->K(30.0);
+
+        TPlano planoChao { { 0.0, -150.0, 0.0 }, { 0.0, 1.0, 0.0 } };
+        planoChao.Rotulo("PLANO_CHAO");
+        planoChao.Material(material);
+
+        return planoChao;
+    }
+
+    TPlano FabricaParedeLateralDireita()
+    {
+        TPlano planoParedeDireita { { 200.0, -150.0, 0.0 }, { -1.0, 0.0, 0.0 } };
+        planoParedeDireita.Rotulo("PLANO_PAREDE_LATERAL_DIR");
+        planoParedeDireita.Material(FabricaMaterialHomogeneo({ 0.686, 0.933, 0.933 }, 1.0));
+
+        return planoParedeDireita;
+    }
+
+    TPlano FabricaParedeFrontal()
+    {
+        TPlano planoParedeFrontal { { 200.0, -150.0, -400.0 }, { 0.0, 0.0, 1.0 } };
+        planoParedeFrontal.Rotulo("PLANO_PAREDE_FRONTAL");
+        planoParedeFrontal.Material(FabricaMaterialHomogeneo({ 0.686, 0.933, 0.933 }, 1.0));
+
+        return planoParedeFrontal;
+    }
+
+    TPlano FabricaParedeLateralEsquerda()
+    {
+        TPlano planoParedeEsquerda { { -200.0, -150.0, 0.0 }, { 1.0, 0.0, 0.0 } };
+        planoParedeEsquerda.Rotulo("PLANO_PAREDE_LATERAL_ESQ");
+        planoParedeEsquerda.Material(FabricaMaterialHomogeneo({ 0.686, 0.933, 0.933 }, 1.0));
+
+        return planoParedeEsquerda;
+    }
+
+    TPlano FabricaTeto()
+    {
+        TPlano planoTeto { { 0.0, 150.0, 0.0 }, { 0.0, -1.0, 0.0 } };
+        planoTeto.Rotulo("PLANO_TETO");
+        planoTeto.Material(FabricaMaterialHomogeneo({ 0.933, 0.933, 0.933 }, 1.0));
+
+        return planoTeto;
+    }
+
+    TCilindro FabricaCilindro()
+    {
+        const TPonto3D cBaseCilindro { 0.0, -150.0, -200.0 };
+        const double rBaseCilindro = 5.0;
+        const double hCilindro = 90.0;
+        const TVetor3D dCilindro { 0.0, 1.0, 0.0 };
+
+        TCilindro cilindro { cBaseCilindro, rBaseCilindro, hCilindro, dCilindro };
+        cilindro.Rotulo("CILINDRO_1");
+        cilindro.Material(FabricaMaterialHomogeneo({ 0.824, 0.706, 0.549 }, 10.0));
+
+        return cilindro;
+    }
+
+    TCone FabricaCone()
+    {
+        const TPonto3D cBaseCone { 0.0, -60.0, -200.0 };
+        const double rBaseCone = 90.0;
+        const double hCone = 150.0;
+        const TVetor3D& dCone = { 0.0, 1.0, 0.0 };
+
+        TCone cone { cBaseCone, rBaseCone, hCone, dCone };
+        cone.Rotulo("CONE_1");
+        cone.Material(FabricaMaterialHomogeneo({ 0.0, 1.0, 0.498 }, 10.0));
+
+        return cone;
+    }
+
+    TCubo FabricaCubo()
+    {
+        TCubo cubo { { 0.0, -150.0, -165.0 }, 40.0 };
+        cubo.Rotulo("CUBO_1");
+        cubo.Material(FabricaMaterialHomogeneo({ 1.0, 0.078, 0.576 }, 10.0));
+
+        return cubo;
+    }
+
+    TMalha3D FabricaMalha()
+    {
+        TMalha3D malha;
+        malha.Rotulo("MALHA_1");
+        TLeitorMalha3D::Carrega(ResTbl::OBJ_SPYRO, malha);
+
+        return malha;
+    }
+
+    TEsfera FabricaEsfera()
+    {
+        TEsfera esfera { { 0.0, 95.0, -200.0 }, 5.0 };
+        esfera.Rotulo("ESFERA_1");
+        esfera.Material(FabricaMaterialHomogeneo({ 0.854, 0.647, 0.125 }, 10.0));
+
+        return esfera;
+    }
+
+    TFontePontual FabricaFontePontual()
+    {
+        return { { -100.0, 140.0, -20.0 }, { 0.7, 0.7, 0.7 } };
+    }
+
+    TCamera FabricaCamera()
+    {
+        // Constroi uma camera identidade (espaco de camera = espaco de mundo),
+        // equivalente a que viemos usando desde o trabalho 1
+
+        return TCamera()
+                .Projecao(TCamera::EProjecao::PERSPECTIVA)
+                .Janela(60.0, 60.0)
+                .DistanciaFocal(30.0)
+                .Viewport(500u, 500u)
+                .OlhoObservador({ 0.0, 0.0, 0.0 })
+                .Visada({ 0.0, 0.0, -1.0 })
+                .Cima({ 0.0, 1.0, 0.0 })
+                .Init();
+    }
+
+    TCamera FabricaCameraOrtograficaComArtefatos()
+    {
+        return TCamera()
+                .Projecao(TCamera::EProjecao::PARALELA)
+                .Janela(500.0, 500.0)
+                .DistanciaFocal(0.0)
+                .Viewport(500u, 500u)
+                .OlhoObservador({ 0.0, 0.0, 0.0 })
+                .Visada({ 0.0, 0.0, -1.0 })
+                .Cima({ 0.0, 1.0, 0.0 })
+                .Init();
+    }
+
+    TCamera FabricaCameraIsometricaComArtefatos()
+    {
+        return TCamera()
+                .Projecao(TCamera::EProjecao::PARALELA)
+                .Janela(500.0, 500.0)
+                .DistanciaFocal(0.0)
+                .Viewport(500u, 500u)
+                .OlhoObservador({ 5.0, 5.0, 5.0 })
+                .Visada({ 0.0, 0.0, 0.0 })
+                .Cima({ 0.0, 1.0, 0.0 })
+                .Init();
+    }
+
+    TCena3D FabricaCena1()
+    {
+        const TPonto3D p0 { 0.0, 0.0, 0.0 };
+
+        TCena3D cena { p0, FabricaCameraOrtograficaComArtefatos() };
+        cena.BgColor({ 100u, 100u, 100u });
+        cena.IambR(0.3);
+        cena.IambG(0.3);
+        cena.IambB(0.3);
+
+        cena.Insere(FabricaChao());
+        cena.Insere(FabricaParedeLateralDireita());
+        cena.Insere(FabricaParedeFrontal());
+        cena.Insere(FabricaParedeLateralEsquerda());
+        cena.Insere(FabricaTeto());
+        cena.Insere(FabricaCilindro());
+        cena.Insere(FabricaCone());
+        cena.Insere(FabricaCubo());
+        cena.Insere(FabricaEsfera());
+        cena.Insere(FabricaFontePontual());
+
+        cena.PodeRenderizarMultiThread(false);
+
+        return cena;
+    }
+
+    TCena3D FabricaCena2()
+    {
+        const TPonto3D p0 { 0.0, 0.0, 0.0 };
+
+        TCena3D cena { p0, FabricaCamera() };
+        cena.BgColor({ 100u, 100u, 100u });
+        cena.IambR(0.3);
+        cena.IambG(0.3);
+        cena.IambB(0.3);
+
+        cena.Insere(FabricaChao());
+        cena.Insere(FabricaParedeLateralDireita());
+        cena.Insere(FabricaParedeFrontal());
+        cena.Insere(FabricaParedeLateralEsquerda());
+        cena.Insere(FabricaTeto());
+        cena.Insere(FabricaMalha());
+        cena.Insere(FabricaFontePontual());
+
+        cena.PodeRenderizarMultiThread(false);
+
+        return cena;
+    }
+
+    TCena3D FabricaCena3()
+    {
+        const TPonto3D p0 { 0.0, 0.0, 0.0 };
+
+        TCena3D cena { p0, FabricaCamera().Janela(30.0, 30.0).Viewport(250u, 250u).Init() };
+        cena.BgColor({ 100u, 100u, 100u });
+        cena.IambR(0.3);
+        cena.IambG(0.3);
+        cena.IambB(0.3);
+
+        cena.Insere(FabricaChao());
+        cena.Insere(FabricaParedeLateralDireita());
+        cena.Insere(FabricaParedeFrontal());
+        cena.Insere(FabricaParedeLateralEsquerda());
+        cena.Insere(FabricaTeto());
+        cena.Insere(FabricaMalha());
+        cena.Insere(TFontePontual { { -4.0, 4.0, 0.0 }, { 0.7, 0.7, 0.7 } });
+        // cena.Insere(FabricaFontePontual());
+
+        cena.PodeRenderizarMultiThread(false);
+
+        return cena;
+    }
+
+    TCena3D FabricaCena4()
+    {
+        const TPonto3D p0 { 0.0, 0.0, 0.0 };
+
+        TCena3D cena { p0, FabricaCamera().Janela(15.0, 15.0).Viewport(125u, 125u).Init() };
+        cena.BgColor({ 100u, 100u, 100u });
+        cena.IambR(0.3);
+        cena.IambG(0.3);
+        cena.IambB(0.3);
+
+        // cena.Insere(FabricaChao());
+        // cena.Insere(FabricaParedeLateralDireita());
+        // cena.Insere(FabricaParedeFrontal());
+        // cena.Insere(FabricaParedeLateralEsquerda());
+        // cena.Insere(FabricaTeto());
+        cena.Insere(FabricaMalha());
+        cena.Insere(FabricaFontePontual());
+
+        cena.PodeRenderizarMultiThread(false);
+
+        return cena;
+    }
+
+    typedef TCena3D(*PtrFabricaCena)();
+    std::unordered_map<std::string, PtrFabricaCena> FabricasCenasPreDefinidas = {
+        { "NATAL", FabricaCena1 },
+        { "SPYRO", FabricaCena2 },
+        { "TESTE", FabricaCena3 },
+        { "MENOR", FabricaCena4 }
+    };
+
+    TCena3D FabricaCena()
+    {
+        return FabricasCenasPreDefinidas["NATAL"]();
+    }
 };
-
-// ------------------------------------------------------------------------------------------------
-
-TCena3D FabricaCena()
-{
-    return FabricasCenasPreDefinidas["NATAL"]();
-}
 
 // ------------------------------------------------------------------------------------------------
 
@@ -4166,7 +4128,7 @@ std::unique_ptr<IArquivoSaida> FabricaArquivo(
 
 bool RenderizaImagem()
 {
-    TCena3D cena = FabricaCena();
+    TCena3D cena = Mocks::FabricaCena();
     const std::unique_ptr<IArquivoSaida> arq = FabricaArquivo("a", EFormatoImagem::BMP, cena);
 
     const bool erro = !arq->Aberto();
@@ -4222,7 +4184,7 @@ public:
 private:
     Globals()
     {
-        cena = new TCena3D(FabricaCena());
+        cena = new TCena3D(Mocks::FabricaCena());
     }
 
     TCena3D* cena = nullptr;
