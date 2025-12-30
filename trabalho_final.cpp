@@ -3585,7 +3585,14 @@ public:
 
         if (auto entidadeComposta = dynamic_cast<const TEntidadeComposta*>(hit.entidade))
         {
-            return entidadeComposta->Rotulo(raio);
+            std::string rotulo = entidadeComposta->Rotulo(raio);
+
+            if (rotulo == "")
+            {
+                rotulo = entidadeComposta->Rotulo();
+            }
+
+            return rotulo;
         }
 
         return hit.entidade->Rotulo();
