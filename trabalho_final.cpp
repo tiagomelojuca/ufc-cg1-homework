@@ -3367,48 +3367,101 @@ private:
 
 // ------------------------------------------------------------------------------------------------
 
-class TJanela
+class TCamera
 {
 public:
-    TJanela() = default;
-    TJanela(
-        const TPonto3D& centro,
-        double wJanela,
-        double hJanela,
-        uint16_t wCanvas,
-        uint16_t hCanvas
-    ) :
-        _centro(centro),
-        _wJanela(wJanela),
-        _hJanela(hJanela),
-        _wCanvas(wCanvas),
-        _hCanvas(hCanvas)
+    TCamera() = default;
+
+    TCamera& Janela(double w, double h)
     {
-        _dx = _wJanela / _wCanvas;
-        _dy = _hJanela / _hCanvas;
+        _wJanela = w;
+        _hJanela = h;
+
+        return *this;
+    }
+    TCamera& Viewport(uint16_t w, uint16_t h)
+    {
+        _wCanvas = w;
+        _hCanvas = h;
+
+        return *this;
+    }
+    TCamera& DistanciaFocal(double d)
+    {
+        _d = d;
+
+        return *this;
+    }
+    TCamera& OlhoObservador(const TPonto3D& pEye)
+    {
+        _pEye = pEye;
+
+        return *this;
+    }
+    TCamera& Visada(const TPonto3D& at)
+    {
+        _atPoint = at;
+
+        return *this;
+    }
+    TCamera& Cima(const TVetor3D& up)
+    {
+        _lookUp = up;
+
+        return *this;
     }
 
-    const TPonto3D& Centro() const { return _centro; }
+    TCamera& Init()
+    {
+        _w = TVetor3D(_pEye - _atPoint).Normalizado();
+        _u = _lookUp.Vetorial(_w).Normalizado();
+        _v = _w.Vetorial(_u);
+
+        _dx = _wJanela / _wCanvas;
+        _dy = _hJanela / _hCanvas;
+
+        return *this;
+    }
+
     double Largura() const { return _wJanela; }
     double Altura() const { return _hJanela; }
     uint16_t LarguraCanvas() const { return _wCanvas; }
     uint16_t AlturaCanvas() const { return _hCanvas; }
 
-    double X(uint16_t coluna) const
+    TRaio3D RaioMundo(uint16_t x, uint16_t y) const
     {
-        return -0.5 * _wJanela + 0.5 * _dx + coluna * _dx;
-    }
-    double Y(uint16_t linha) const
-    {
-        return 0.5 * _hJanela - 0.5 * _dy - linha * _dy;
+        const double px = -0.5 * _wJanela + 0.5 * _dx + x * _dx;
+        const double py =  0.5 * _hJanela - 0.5 * _dy - y * _dy;
+        const double pz = -_d;
+
+        const TPonto3D pCamera { px, py, pz };
+        const TPonto3D pOrigemCamera { 0.0, 0.0, 0.0 }; // p0
+        const TVetor3D direcaoRaioCamera = FuncoesGeometricas::Versor(pOrigemCamera, pCamera);
+
+        const TVetor3D u_ = _u * direcaoRaioCamera.X();
+        const TVetor3D v_ = _v * direcaoRaioCamera.Y();
+        const TVetor3D w_ = _w * direcaoRaioCamera.Z();
+
+        const TPonto3D& pOrigemMundo = _pEye;
+        const TVetor3D direcaoRaioMundo = u_ + v_ + w_;
+
+        return TRaio3D { pOrigemMundo, direcaoRaioMundo };
     }
 
 private:
-    TPonto3D _centro;
-    double _wJanela = 0.0;
-    double _hJanela = 0.0;
-    uint16_t _wCanvas = 0;
-    uint16_t _hCanvas = 0;
+    double _wJanela = 0.0; // define o campo de visao horizontal (fovX)
+    double _hJanela = 0.0; // define o campo de visao vertical   (fovY)
+    uint16_t _wCanvas = 0; // largura da viewport
+    uint16_t _hCanvas = 0; // altura  da viewport
+
+    TPonto3D _pEye;    // olho do observador / posicao da camera
+    TPonto3D _atPoint; // direcionamento de visada
+    TVetor3D _lookUp;  // orientacao da camera em torno do eixo de visada
+    double _d = 0.0;   // distancia focal
+
+    TVetor3D _w; // z da camera, sentido positivo para tras dela
+    TVetor3D _u; // x da camera, calculado pelo z dela e o upVector fornecido
+    TVetor3D _v; // y da camera, pela regra da mao direita
 
     double _dx = 0.0;
     double _dy = 0.0;
@@ -3428,10 +3481,10 @@ class TCena3D
 {
 public:
     TCena3D() = default;
-    TCena3D(const TPonto3D& origem, const TJanela& janela) : _janela(janela), _p0(origem) {}
+    TCena3D(const TPonto3D& origem, const TCamera& camera) : _camera(camera), _p0(origem) {}
 
-    const TJanela& Janela() const { return _janela; }
-    void Janela(const TJanela& janela) { _janela = janela; }
+    const TCamera& Camera() const { return _camera; }
+    void Camera(const TCamera& camera) { _camera = camera; }
 
     const TPonto3D& Origem() const { return _p0; }
     void Origem(const TPonto3D& p0) { _p0 = p0; }
@@ -3487,10 +3540,7 @@ public:
 
     std::string Pick(uint16_t x, uint16_t y)
     {
-        const TPonto3D p { _janela.X(x), _janela.Y(y), _janela.Centro().Z() };
-        const TVetor3D d = FuncoesGeometricas::Versor(_p0, p);
-        const TRaio3D raio { _p0, d };
-
+        const TRaio3D raio = _camera.RaioMundo(x, y);
         const THit hit = ColisaoMaisProxima(raio);
 
         if (hit.entidade == nullptr)
@@ -3551,19 +3601,14 @@ private:
             _arqLog = arqLog;
         }
 
-        const uint16_t nLinhas = _janela.AlturaCanvas();
-        const uint16_t nColunas = _janela.LarguraCanvas();
+        const uint16_t nLinhas = _camera.AlturaCanvas();
+        const uint16_t nColunas = _camera.LarguraCanvas();
 
-        const double z = _janela.Centro().Z();
         for (int l = 0; l < nLinhas; l++)
         {
-            const double y = _janela.Y(l);
-
             for (int c = 0; c < nColunas; c++)
             {
-                const double x = _janela.X(c);
-
-                arq.Anexa(Cor({ x, y, z }));
+                arq.Anexa(Cor(Camera().RaioMundo(c, l)));
             }
         }
 
@@ -3582,17 +3627,12 @@ private:
             {
                 for (int y = y0; y < y1; y++)
                     for (int x = 0; x < W(); x++)
-                        arq.Anexa(c.Cor(P(x, y)));
+                        arq.Anexa(c.Cor(c.Camera().RaioMundo(x, y)));
             }
 
             uint16_t W() const
             {
-                return c.Janela().LarguraCanvas();
-            }
-
-            TPonto3D P(int x, int y) const
-            {
-                return { c.Janela().X(x), c.Janela().Y(y), c.Janela().Centro().Z() };
+                return c.Camera().LarguraCanvas();
             }
 
             IDispositivoSaida& arq;
@@ -3600,7 +3640,7 @@ private:
             int y0, y1;
         };
 
-        const uint16_t h = _janela.AlturaCanvas();
+        const uint16_t h = _camera.AlturaCanvas();
         const int n = std::thread::hardware_concurrency();
         const int linhas = h / n;
 
@@ -3614,17 +3654,17 @@ private:
 
         for (auto& t : threads) t.join();
 
-        // const uint16_t nLinhas = _janela.AlturaCanvas();
-        // const uint16_t nColunas = _janela.LarguraCanvas();
+        // const uint16_t nLinhas = _camera.AlturaCanvas();
+        // const uint16_t nColunas = _camera.LarguraCanvas();
 
-        // const double z = _janela.Centro().Z();
+        // const double z = _camera.Centro().Z();
         // for (int l = 0; l < nLinhas; l++)
         // {
-        //     const double y = _janela.Y(l);
+        //     const double y = _camera.Y(l);
 
         //     for (int c = 0; c < nColunas; c++)
         //     {
-        //         const double x = _janela.X(c);
+        //         const double x = _camera.X(c);
 
         //         arq.Anexa({ 255u, 0u, 0u });
         //     }
@@ -3633,11 +3673,8 @@ private:
         // arq.Flush();
     }
 
-    TCor Cor(const TPonto3D& p) const
+    TCor Cor(const TRaio3D& raio) const
     {
-        const TVetor3D d = FuncoesGeometricas::Versor(_p0, p);
-        const TRaio3D raio { _p0, d };
-
         const THit hit = ColisaoMaisProxima(raio);
         const IEntidade3D* entidadeMaisProximaObservador = hit.entidade;
         const double intersecaoMaisProximaObservador = hit.interseccao;
@@ -3732,7 +3769,7 @@ private:
     TArquivoLOG* _arqLog = nullptr;
     bool _podeRenderizarMT = false;
 
-    TJanela _janela;
+    TCamera _camera;
     TPonto3D _p0; // olho do pintor (origem)
 
     TCor _bgColor;
@@ -3907,18 +3944,28 @@ TFontePontual FabricaFontePontual()
 
 // ------------------------------------------------------------------------------------------------
 
+TCamera FabricaCamera()
+{
+    // Constroi uma camera identidade (espaco de camera = espaco de mundo),
+    // equivalente a que viemos usando desde o trabalho 1
+
+    return TCamera()
+            .Janela(60.0, 60.0)
+            .DistanciaFocal(30.0)
+            .Viewport(500u, 500u)
+            .OlhoObservador({ 0.0, 0.0, 0.0 })
+            .Visada({ 0.0, 0.0, -1.0 })
+            .Cima({ 0.0, 1.0, 0.0 })
+            .Init();
+}
+
+// ------------------------------------------------------------------------------------------------
+
 TCena3D FabricaCena1()
 {
     const TPonto3D p0 { 0.0, 0.0, 0.0 };
 
-    const double wJanela = 60.0;
-    const double hJanela = 60.0;
-    const double dJanela = 30.0;
-    const uint16_t wCanvas = 500u;
-    const uint16_t hCanvas = 500u;
-    const TJanela janela { { 0.0, 0.0, -dJanela }, wJanela, hJanela, wCanvas, hCanvas };
-
-    TCena3D cena { p0, janela };
+    TCena3D cena { p0, FabricaCamera() };
     cena.BgColor({ 100u, 100u, 100u });
     cena.IambR(0.3);
     cena.IambG(0.3);
@@ -3946,14 +3993,7 @@ TCena3D FabricaCena2()
 {
     const TPonto3D p0 { 0.0, 0.0, 0.0 };
 
-    const double wJanela = 60.0;
-    const double hJanela = 60.0;
-    const double dJanela = 30.0;
-    const uint16_t wCanvas = 500u;
-    const uint16_t hCanvas = 500u;
-    const TJanela janela { { 0.0, 0.0, -dJanela }, wJanela, hJanela, wCanvas, hCanvas };
-
-    TCena3D cena { p0, janela };
+    TCena3D cena { p0, FabricaCamera() };
     cena.BgColor({ 100u, 100u, 100u });
     cena.IambR(0.3);
     cena.IambG(0.3);
@@ -3978,14 +4018,7 @@ TCena3D FabricaCena3()
 {
     const TPonto3D p0 { 0.0, 0.0, 0.0 };
 
-    const double wJanela = 30.0;
-    const double hJanela = 30.0;
-    const double dJanela = 30.0;
-    const uint16_t wCanvas = 250u;
-    const uint16_t hCanvas = 250u;
-    const TJanela janela { { 0.0, 0.0, -dJanela }, wJanela, hJanela, wCanvas, hCanvas };
-
-    TCena3D cena { p0, janela };
+    TCena3D cena { p0, FabricaCamera().Janela(30.0, 30.0).Viewport(250u, 250u).Init() };
     cena.BgColor({ 100u, 100u, 100u });
     cena.IambR(0.3);
     cena.IambG(0.3);
@@ -4011,14 +4044,7 @@ TCena3D FabricaCena4()
 {
     const TPonto3D p0 { 0.0, 0.0, 0.0 };
 
-    const double wJanela = 15.0;
-    const double hJanela = 15.0;
-    const double dJanela = 30.0;
-    const uint16_t wCanvas = 125u;
-    const uint16_t hCanvas = 125u;
-    const TJanela janela { { 0.0, 0.0, -dJanela }, wJanela, hJanela, wCanvas, hCanvas };
-
-    TCena3D cena { p0, janela };
+    TCena3D cena { p0, FabricaCamera().Janela(15.0, 15.0).Viewport(125u, 125u).Init() };
     cena.BgColor({ 100u, 100u, 100u });
     cena.IambR(0.3);
     cena.IambG(0.3);
@@ -4063,10 +4089,10 @@ std::unique_ptr<IArquivoSaida> FabricaArquivo(
     const TCena3D& cena
 )
 {
-    const TJanela janela = cena.Janela();
+    const TCamera camera = cena.Camera();
 
     return FuncoesGerais::FabricaArquivo(
-        formato, nome, janela.LarguraCanvas(), janela.AlturaCanvas()
+        formato, nome, camera.LarguraCanvas(), camera.AlturaCanvas()
     );
 }
 
@@ -4259,8 +4285,8 @@ private:
         TCena3D& cena = Globals::Instancia().Cena();
         const std::uint16_t x = XAncoraViewport();
         const std::uint16_t y = YAncoraViewport();
-        const std::uint16_t w = cena.Janela().LarguraCanvas();
-        const std::uint16_t h = cena.Janela().AlturaCanvas();
+        const std::uint16_t w = cena.Camera().LarguraCanvas();
+        const std::uint16_t h = cena.Camera().AlturaCanvas();
 
         RECT r { x, y, x + w, y + h };
         FillRect(hdc, &r, (HBRUSH)GetStockObject(BLACK_BRUSH));
@@ -4398,8 +4424,8 @@ private:
         const auto xAncVp = XAncoraViewport();
         const auto yAncVp = YAncoraViewport();
 
-        return x >= xAncVp && x < xAncVp + cena.Janela().LarguraCanvas() &&
-               y >= yAncVp && y < yAncVp + cena.Janela().AlturaCanvas();
+        return x >= xAncVp && x < xAncVp + cena.Camera().LarguraCanvas() &&
+               y >= yAncVp && y < yAncVp + cena.Camera().AlturaCanvas();
     }
 
     static void ConvertToViewportCoords(int& x, int& y)
