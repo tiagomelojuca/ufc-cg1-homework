@@ -13,6 +13,7 @@ RayTracer didatico desenvolvido durante a disciplina de Computacao Grafica I da 
 [ ] Projecao perspectiva c/ 1 ponto de fuga  
 [ ] Projecao perspectiva c/ 2 ponto de fuga  
 [ ] Projecao perspectiva c/ 3 ponto de fuga  
+[ ] Zoom In/Out
 [/] Transformacao de Translacao  
 [ ] Transformacao de Rotacao em eixo canonico  
 [ ] Transformacao de Rotacao em eixo arbitrario (por mudanca de coords)  
@@ -35,3 +36,10 @@ RayTracer didatico desenvolvido durante a disciplina de Computacao Grafica I da 
 [ ] - nao implementado  
 [/] - implementado, mas lembrar de aplicar no final  
 [x] - implementado e aplicado  
+
+## Duvidas
+- Malha cor estourada, mostrar modelo no Blender  
+- Textura zoada apos reflexao (problema das normais nas transformacoes?)  
+- Artefatos na projecao paralela  
+- Pontos de fuga  
+- Projecoes obliquas (pode ser isometrica? como definir?)  
