@@ -3370,8 +3370,16 @@ private:
 class TCamera
 {
 public:
+    enum class EProjecao { PERSPECTIVA, PARALELA };
+
     TCamera() = default;
 
+    TCamera& Projecao(EProjecao proj)
+    {
+        _modoProjecao = proj;
+
+        return *this;
+    }
     TCamera& Janela(double w, double h)
     {
         _wJanela = w;
@@ -3430,6 +3438,14 @@ public:
 
     TRaio3D RaioMundo(uint16_t x, uint16_t y) const
     {
+        return _modoProjecao == EProjecao::PERSPECTIVA
+            ? RaioMundoProjecaoPerspectiva(x, y)
+            : RaioMundoProjecaoParalela(x, y);
+    }
+
+private:
+    TRaio3D RaioMundoProjecaoPerspectiva(uint16_t x, uint16_t y) const
+    {
         const double px = -0.5 * _wJanela + 0.5 * _dx + x * _dx;
         const double py =  0.5 * _hJanela - 0.5 * _dy - y * _dy;
         const double pz = -_d;
@@ -3447,8 +3463,27 @@ public:
 
         return TRaio3D { pOrigemMundo, direcaoRaioMundo };
     }
+    TRaio3D RaioMundoProjecaoParalela(uint16_t x, uint16_t y) const
+    {
+        const double px = -0.5 * _wJanela + 0.5 * _dx + x * _dx;
+        const double py =  0.5 * _hJanela - 0.5 * _dy - y * _dy;
+        const double pz = -_d;
 
-private:
+        const TPonto3D pCamera { px, py, pz };
+        const TPonto3D pOrigemCamera = pCamera; // p0
+
+        const TVetor3D u_ = _u * pOrigemCamera.X();
+        const TVetor3D v_ = _v * pOrigemCamera.Y();
+        const TVetor3D w_ = _w * pOrigemCamera.Z();
+
+        const TPonto3D& pOrigemMundo = _pEye + u_ + v_ + w_;
+        const TVetor3D direcaoRaioMundo = _w * -1.0;
+
+        return TRaio3D { pOrigemMundo, direcaoRaioMundo };
+    }
+
+    EProjecao _modoProjecao = EProjecao::PERSPECTIVA;
+
     double _wJanela = 0.0; // define o campo de visao horizontal (fovX)
     double _hJanela = 0.0; // define o campo de visao vertical   (fovY)
     uint16_t _wCanvas = 0; // largura da viewport
@@ -3950,6 +3985,7 @@ TCamera FabricaCamera()
     // equivalente a que viemos usando desde o trabalho 1
 
     return TCamera()
+            .Projecao(TCamera::EProjecao::PERSPECTIVA)
             .Janela(60.0, 60.0)
             .DistanciaFocal(30.0)
             .Viewport(500u, 500u)
@@ -3961,11 +3997,41 @@ TCamera FabricaCamera()
 
 // ------------------------------------------------------------------------------------------------
 
+TCamera FabricaCameraOrtograficaComArtefatos()
+{
+    return TCamera()
+            .Projecao(TCamera::EProjecao::PARALELA)
+            .Janela(500.0, 500.0)
+            .DistanciaFocal(0.0)
+            .Viewport(500u, 500u)
+            .OlhoObservador({ 0.0, 0.0, 0.0 })
+            .Visada({ 0.0, 0.0, -1.0 })
+            .Cima({ 0.0, 1.0, 0.0 })
+            .Init();
+}
+
+// ------------------------------------------------------------------------------------------------
+
+TCamera FabricaCameraIsometricaComArtefatos()
+{
+    return TCamera()
+            .Projecao(TCamera::EProjecao::PARALELA)
+            .Janela(500.0, 500.0)
+            .DistanciaFocal(0.0)
+            .Viewport(500u, 500u)
+            .OlhoObservador({ 5.0, 5.0, 5.0 })
+            .Visada({ 0.0, 0.0, 0.0 })
+            .Cima({ 0.0, 1.0, 0.0 })
+            .Init();
+}
+
+// ------------------------------------------------------------------------------------------------
+
 TCena3D FabricaCena1()
 {
     const TPonto3D p0 { 0.0, 0.0, 0.0 };
 
-    TCena3D cena { p0, FabricaCamera() };
+    TCena3D cena { p0, FabricaCameraOrtograficaComArtefatos() };
     cena.BgColor({ 100u, 100u, 100u });
     cena.IambR(0.3);
     cena.IambG(0.3);
@@ -4078,7 +4144,7 @@ std::unordered_map<std::string, PtrFabricaCena> FabricasCenasPreDefinidas = {
 
 TCena3D FabricaCena()
 {
-    return FabricasCenasPreDefinidas["TESTE"]();
+    return FabricasCenasPreDefinidas["NATAL"]();
 }
 
 // ------------------------------------------------------------------------------------------------
