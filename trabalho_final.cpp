@@ -3853,7 +3853,7 @@ private:
 
             const TRaio3D shadowRay { pi, l };
 
-            bool temEntidadeBloqueandoLuz = false;
+            bool temOutraEntidadeBloqueandoLuz = false;
             for (const std::unique_ptr<IEntidade3D>& outraEntidade : _entidades)
             {
                 if (&entidade != outraEntidade.get())
@@ -3868,13 +3868,13 @@ private:
 
                         if (intersecaoMaisProxima < L.Norma())
                         {
-                            temEntidadeBloqueandoLuz = true;
+                            temOutraEntidadeBloqueandoLuz = true;
                         }
                     }
                 }
             }
 
-            if (!temEntidadeBloqueandoLuz)
+            if (!temOutraEntidadeBloqueandoLuz)
             {
                 const TVetor3D r = (n * 2.0 * n.Dot(l)) - l;
                 const double fd = std::max(0.0, n.Dot(l));
