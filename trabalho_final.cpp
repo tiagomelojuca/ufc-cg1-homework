@@ -587,6 +587,14 @@ public:
         return ret;
     }
 
+    TVetor3D Oposto() const
+    {
+        TVetor3D ret = *this;
+        ret *= 1.0;
+        ret.W(1.0);
+        return ret;
+    }
+
     std::string ToString() const
     {
         std::stringstream ss;
