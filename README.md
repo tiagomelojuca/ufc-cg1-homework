@@ -5,16 +5,16 @@ RayTracer didatico desenvolvido durante a disciplina de Computacao Grafica I da 
 [x] Interface Grafica  
 [/] Saida de min 500x500  
 [x] Picking  
-[ ] Coordenadas de mundo positivas e independentes  
-[ ] Camera personalizada (eye, at, lookUp, d, fov)  
+[/] Coordenadas de mundo positivas e independentes  
+[x] Camera personalizada (eye, at, lookUp, d, fov)  
 [ ] Projecao ortografica  
 [ ] Projecao obliquia  
 [/] Projecao perspectiva  
 [ ] Projecao perspectiva c/ 1 ponto de fuga  
 [ ] Projecao perspectiva c/ 2 ponto de fuga  
 [ ] Projecao perspectiva c/ 3 ponto de fuga  
-[ ] Zoom In/Out
-[/] Transformacao de Translacao  
+[x] Zoom In/Out  
+[ ] Transformacao de Translacao  
 [ ] Transformacao de Rotacao em eixo canonico  
 [ ] Transformacao de Rotacao em eixo arbitrario (por mudanca de coords)  
 [ ] Transformacao de Escala  
@@ -28,7 +28,7 @@ RayTracer didatico desenvolvido durante a disciplina de Computacao Grafica I da 
 [/] Objeto Esfera  
 [/] Objeto Cilindro  
 [/] Objeto Cone  
-[ ] Objeto Malha  
+[x] Objeto Malha  
 [/] Minimo de 4 materiais  
 [/] Minimo de 1 textura  
   
@@ -43,3 +43,4 @@ RayTracer didatico desenvolvido durante a disciplina de Computacao Grafica I da 
 - Artefatos na projecao paralela  
 - Pontos de fuga  
 - Projecoes obliquas (pode ser isometrica? como definir?)  
+- Na cena de natal, como eu vejo a luz se os planos deveriam bloquear com sombra?
