@@ -131,6 +131,10 @@ public:
         std::ofstream(NomeArquivo(), std::ios_base::out);
     }
 
+    static bool TraceActive()
+    {
+        return _isTraceActive;
+    }
     static void TraceActive(bool traceActive)
     {
         _isTraceActive = traceActive;
