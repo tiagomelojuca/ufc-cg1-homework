@@ -1613,9 +1613,50 @@ public:
         return _i;
     }
 
-private:
+protected:
     TPonto3D _p;
     TVetor3D _i;
+};
+
+// ------------------------------------------------------------------------------------------------
+
+class TFonteSpot : public TFontePontual
+{
+public:
+    TFonteSpot() = default;
+    TFonteSpot(
+        const TPonto3D& posicao,
+        const TVetor3D& direcao,
+        const TVetor3D& intensidade,
+        double abertura
+    )
+        : TFontePontual(posicao, intensidade),
+          _d(direcao.Normalizado()),
+          _cosTeta(cos(abertura))
+    {
+    }
+
+    IFonteLuminosa* Copia() const override
+    {
+        return new TFonteSpot(*this);
+    }
+
+    TVetor3D Intensidade(const TVetor3D& l) const
+    {
+        TVetor3D i { 0.0, 0.0, 0.0 };
+
+        const double cosAlfa = -l.Dot(_d);
+        if (cosAlfa >= _cosTeta)
+        {
+            i = _i * cosAlfa;
+        }
+
+        return i;
+    }
+
+private:
+    TVetor3D _d;
+    double _cosTeta = 0.0;
 };
 
 // ------------------------------------------------------------------------------------------------
@@ -3785,10 +3826,20 @@ private:
             if (auto fontePontual = dynamic_cast<const TFontePontual*>(fonte.get()))
             {
                 const TPonto3D& pFonte = fontePontual->Posicao();
-                const TVetor3D& iFonte = fontePontual->Intensidade();
-                
+
                 const TVetor3D L = pFonte - pi;
                 const TVetor3D l = L.Normalizado();
+
+                TVetor3D iFonte;
+                if (auto fonteSpot = dynamic_cast<const TFonteSpot*>(fontePontual))
+                {
+                    iFonte = fonteSpot->Intensidade(l);
+                }
+                else
+                {
+                    iFonte = fontePontual->Intensidade();
+                }
+
                 const TRaio3D shadowRay { pi, l };
 
                 bool temEntidadeBloqueandoLuz = false;
@@ -3987,6 +4038,11 @@ namespace Mocks
     TFontePontual FabricaFontePontual()
     {
         return { { -100.0, 140.0, -20.0 }, { 0.7, 0.7, 0.7 } };
+    }
+
+    TFonteSpot FabricaFonteSpot()
+    {
+        return { { 0.0, 0.0, 0.0 }, { 0.0, 0.0, -1.0 }, { 0.7, 0.7, 0.7 }, FuncoesGerais::Deg2Rad(30.0) };
     }
 
     TCamera FabricaCamera()
