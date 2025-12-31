@@ -1600,6 +1600,9 @@ public:
     virtual ~IFonteLuminosa() = default;
 
     virtual IFonteLuminosa* Copia() const = 0;
+
+    virtual TVetor3D L(const TPonto3D& pi) const = 0;
+    virtual TVetor3D I(const TVetor3D& l) const = 0;
 };
 
 // ------------------------------------------------------------------------------------------------
@@ -1614,6 +1617,15 @@ public:
     IFonteLuminosa* Copia() const override
     {
         return new TFontePontual(*this);
+    }
+
+    TVetor3D L(const TPonto3D& pi) const override
+    {
+        return Posicao() - pi;
+    }
+    TVetor3D I(const TVetor3D& l) const override
+    {
+        return Intensidade();
     }
 
     const TPonto3D& Posicao() const
@@ -1653,7 +1665,7 @@ public:
         return new TFonteSpot(*this);
     }
 
-    TVetor3D Intensidade(const TVetor3D& l) const
+    TVetor3D I(const TVetor3D& l) const override
     {
         TVetor3D i { 0.0, 0.0, 0.0 };
 
@@ -3835,58 +3847,44 @@ private:
         TVetor3D i = ia;
         for (const std::unique_ptr<IFonteLuminosa>& fonte : _fontes)
         {
-            if (auto fontePontual = dynamic_cast<const TFontePontual*>(fonte.get()))
+            const TVetor3D L = fonte->L(pi);
+            const TVetor3D l = L.Normalizado();
+            const TVetor3D iFonte = fonte->I(l);
+
+            const TRaio3D shadowRay { pi, l };
+
+            bool temEntidadeBloqueandoLuz = false;
+            for (const std::unique_ptr<IEntidade3D>& outraEntidade : _entidades)
             {
-                const TPonto3D& pFonte = fontePontual->Posicao();
-
-                const TVetor3D L = pFonte - pi;
-                const TVetor3D l = L.Normalizado();
-
-                TVetor3D iFonte;
-                if (auto fonteSpot = dynamic_cast<const TFonteSpot*>(fontePontual))
+                if (&entidade != outraEntidade.get())
                 {
-                    iFonte = fonteSpot->Intensidade(l);
-                }
-                else
-                {
-                    iFonte = fontePontual->Intensidade();
-                }
-
-                const TRaio3D shadowRay { pi, l };
-
-                bool temEntidadeBloqueandoLuz = false;
-                for (const std::unique_ptr<IEntidade3D>& outraEntidade : _entidades)
-                {
-                    if (&entidade != outraEntidade.get())
+                    const std::vector<double> intersecoes = FuncoesGeometricas::IntersecoesValidas(
+                        *outraEntidade, shadowRay
+                    );
+                    
+                    if (!intersecoes.empty())
                     {
-                        const std::vector<double> intersecoes = FuncoesGeometricas::IntersecoesValidas(
-                            *outraEntidade, shadowRay
-                        );
-                        
-                        if (!intersecoes.empty())
-                        {
-                            const double intersecaoMaisProxima = intersecoes[0];
+                        const double intersecaoMaisProxima = intersecoes[0];
 
-                            if (intersecaoMaisProxima < L.Norma())
-                            {
-                                temEntidadeBloqueandoLuz = true;
-                            }
+                        if (intersecaoMaisProxima < L.Norma())
+                        {
+                            temEntidadeBloqueandoLuz = true;
                         }
                     }
                 }
+            }
 
-                if (!temEntidadeBloqueandoLuz)
-                {
-                    const TVetor3D r = (n * 2.0 * n.Dot(l)) - l;
-                    const double fd = std::max(0.0, n.Dot(l));
-                    const double fe = pow(std::max(v.Dot(r), 0.0), material.M());
+            if (!temEntidadeBloqueandoLuz)
+            {
+                const TVetor3D r = (n * 2.0 * n.Dot(l)) - l;
+                const double fd = std::max(0.0, n.Dot(l));
+                const double fe = pow(std::max(v.Dot(r), 0.0), material.M());
 
-                    const auto id = iFonte.Arroba(kd) * fd;
-                    const auto ie = iFonte.Arroba(ke) * fe;
+                const auto id = iFonte.Arroba(kd) * fd;
+                const auto ie = iFonte.Arroba(ke) * fe;
 
-                    const TVetor3D iCorrente = id + ie;
-                    i += iCorrente;
-                }
+                const TVetor3D iCorrente = id + ie;
+                i += iCorrente;
             }
         }
 
@@ -4119,6 +4117,7 @@ namespace Mocks
         cena.Insere(FabricaCubo());
         cena.Insere(FabricaEsfera());
         cena.Insere(FabricaFontePontual());
+        // cena.Insere(FabricaFonteSpot());
 
         cena.PodeRenderizarMultiThread(false);
 
