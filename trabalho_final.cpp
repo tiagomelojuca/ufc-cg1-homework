@@ -3628,7 +3628,7 @@ protected:
 
     bool IniciaComPalavraChave(const std::string& linha, const std::string& token)
     {
-        return linha.rfind(token + " ", 0) == 0;
+        return linha == token || linha.rfind(token + " ", 0) == 0;
     }
 
     bool _parseado = false;
@@ -4002,13 +4002,694 @@ private:
 
 // ------------------------------------------------------------------------------------------------
 
-class TLeitorCena3D
+class TLeitorCena3D : public TLeitorArquivoTextual
 {
 public:
     TLeitorCena3D(const std::string& caminho) : _is(caminho) {}
 
+    TLeitorCena3D(const TLeitorCena3D&) = delete;
+    TLeitorCena3D(TLeitorCena3D&&) = delete;
+    TLeitorCena3D& operator=(const TLeitorCena3D&) = delete;
+
+    static void Carrega(const std::string& scn, TCena3D& cena)
+    {
+        TLeitorCena3D leitorCena(scn);
+        leitorCena.Parse();
+        leitorCena.Popula(cena);
+    }
+
+    bool Parse() override
+    {
+        if (_parseado)
+        {
+            return _ok;
+        }
+
+        if (_is.is_open())
+        {
+            Processa(_is);
+            ConverteMateriais();
+        }
+        else
+        {
+            _ok = false;
+        }
+
+        _parseado = true;
+
+        return _ok;
+    }
+
+    void Popula(TCena3D& cena) const
+    {
+        cena.BgColor(_bgColor);
+        cena.IambR(_iAmbR);
+        cena.IambG(_iAmbG);
+        cena.IambB(_iAmbB);
+
+        cena.Camera(Converte(_camera));
+
+        for (const auto& metadadosElemento : _planos)
+        {
+            cena.Insere(Converte(metadadosElemento));
+        }
+        for (const auto& metadadosElemento : _cilindros)
+        {
+            cena.Insere(Converte(metadadosElemento));
+        }
+        for (const auto& metadadosElemento : _cones)
+        {
+            cena.Insere(Converte(metadadosElemento));
+        }
+        for (const auto& metadadosElemento : _cubos)
+        {
+            cena.Insere(Converte(metadadosElemento));
+        }
+        for (const auto& metadadosElemento : _esferas)
+        {
+            cena.Insere(Converte(metadadosElemento));
+        }
+        for (const auto& metadadosElemento : _malhas)
+        {
+            cena.Insere(Converte(metadadosElemento));
+        }
+        for (const auto& metadadosElemento : _fontesPontuais)
+        {
+            cena.Insere(Converte(metadadosElemento));
+        }
+        for (const auto& metadadosElemento : _fontesSpots)
+        {
+            cena.Insere(Converte(metadadosElemento));
+        }
+        for (const auto& metadadosElemento : _fontesDirecionais)
+        {
+            cena.Insere(Converte(metadadosElemento));
+        }
+    }
+
 private:
-    std::ifstream _is; // .scn
+    enum class EClasseElemento
+    {
+        NENHUM,
+        CAMERA,
+        MATERIAL,
+        PLANO,
+        CILINDRO,
+        CONE,
+        CUBO,
+        ESFERA,
+        MALHA,
+        FONTE_PONTUAL,
+        FONTE_SPOT,
+        FONTE_DIRECIONAL
+    };
+    struct TMetadadosCamera
+    {
+        std::string projecao;
+        TVetor3D janela;
+        uint16_t vw;
+        uint16_t vh;
+        TVetor3D olho;
+        TVetor3D visada;
+        TVetor3D cima;
+    };
+    struct TMetadadosMaterial
+    {
+        std::string nome;
+        TVetor3D kd;
+        TVetor3D ke;
+        TVetor3D ka;
+        double m;
+        std::string texArq;
+        double texK;
+    };
+    struct TMetadadosPlano
+    {
+        std::string nome;
+        std::string material;
+        TVetor3D posicao;
+        TVetor3D direcao;
+    };
+    struct TMetadadosCilindro
+    {
+        std::string nome;
+        std::string material;
+        TVetor3D posicao;
+        TVetor3D direcao;
+        double raio;
+        double altura;
+    };
+    struct TMetadadosCone
+    {
+        std::string nome;
+        std::string material;
+        TVetor3D posicao;
+        TVetor3D direcao;
+        double raio;
+        double altura;
+    };
+    struct TMetadadosCubo
+    {
+        std::string nome;
+        std::string material;
+        TVetor3D posicao;
+        double aresta;
+    };
+    struct TMetadadosEsfera
+    {
+        std::string nome;
+        std::string material;
+        TVetor3D posicao;
+        double raio;
+    };
+    struct TMetadadosMalha
+    {
+        std::string nome;
+        std::string arquivo;
+    };
+    struct TMetadadosFontePontual
+    {
+        TVetor3D posicao;
+        TVetor3D intensidade;
+    };
+    struct TMetadadosFonteSpot
+    {
+        TVetor3D posicao;
+        TVetor3D direcao;
+        TVetor3D intensidade;
+        double angulo;
+    };
+    struct TMetadadosFonteDirecional
+    {
+        TVetor3D direcao;
+        TVetor3D intensidade;
+    };
+
+    bool ProcessaLinha(const std::string& linha) override
+    {
+        if (IniciaComPalavraChave(linha, "bgcolor"))
+        {
+            _bgColor = FuncoesGerais::Vec2Cor(LeVetor3D(linha));
+        }
+        else if (IniciaComPalavraChave(linha, "iamb"))
+        {
+            const auto iamb = LeVetor3D(linha);
+            _iAmbR = iamb.X();
+            _iAmbG = iamb.Y();
+            _iAmbB = iamb.Z();
+        }
+        else if (IniciaComPalavraChave(linha, "FIM_DECLARACAO"))
+        {
+            _clsElementoCorrente = EClasseElemento::NENHUM;
+        }
+        else if (IniciaComPalavraChave(linha, "DECLARA_CAMERA"))
+        {
+            _clsElementoCorrente = EClasseElemento::CAMERA;
+        }
+        else if (IniciaComPalavraChave(linha, "DECLARA_MATERIAL"))
+        {
+            _clsElementoCorrente = EClasseElemento::MATERIAL;
+            _materiais.push_back(TMetadadosMaterial {});
+        }
+        else if (IniciaComPalavraChave(linha, "DECLARA_PLANO"))
+        {
+            _clsElementoCorrente = EClasseElemento::PLANO;
+            _planos.push_back(TMetadadosPlano {});
+        }
+        else if (IniciaComPalavraChave(linha, "DECLARA_CILINDRO"))
+        {
+            _clsElementoCorrente = EClasseElemento::CILINDRO;
+            _cilindros.push_back(TMetadadosCilindro {});
+        }
+        else if (IniciaComPalavraChave(linha, "DECLARA_CONE"))
+        {
+            _clsElementoCorrente = EClasseElemento::CONE;
+            _cones.push_back(TMetadadosCone {});
+        }
+        else if (IniciaComPalavraChave(linha, "DECLARA_CUBO"))
+        {
+            _clsElementoCorrente = EClasseElemento::CUBO;
+            _cubos.push_back(TMetadadosCubo {});
+        }
+        else if (IniciaComPalavraChave(linha, "DECLARA_ESFERA"))
+        {
+            _clsElementoCorrente = EClasseElemento::ESFERA;
+            _esferas.push_back(TMetadadosEsfera {});
+        }
+        else if (IniciaComPalavraChave(linha, "DECLARA_MALHA"))
+        {
+            _clsElementoCorrente = EClasseElemento::MALHA;
+            _malhas.push_back(TMetadadosMalha {});
+        }
+        else if (IniciaComPalavraChave(linha, "DECLARA_LUZ_PONTUAL"))
+        {
+            _clsElementoCorrente = EClasseElemento::FONTE_PONTUAL;
+            _fontesPontuais.push_back(TMetadadosFontePontual {});
+        }
+        else if (IniciaComPalavraChave(linha, "DECLARA_LUZ_SPOT"))
+        {
+            _clsElementoCorrente = EClasseElemento::FONTE_SPOT;
+            _fontesSpots.push_back(TMetadadosFonteSpot {});
+        }
+        else if (IniciaComPalavraChave(linha, "DECLARA_LUZ_DIRECIONAL"))
+        {
+            _clsElementoCorrente = EClasseElemento::FONTE_DIRECIONAL;
+            _fontesDirecionais.push_back(TMetadadosFonteDirecional {});
+        }
+        else if (_clsElementoCorrente == EClasseElemento::CAMERA)
+        {
+            ProcessaAtributo(linha, _camera);
+        }
+        else if (_clsElementoCorrente == EClasseElemento::MATERIAL)
+        {
+            ProcessaAtributo(linha, _materiais.back());
+        }
+        else if (_clsElementoCorrente == EClasseElemento::PLANO)
+        {
+            ProcessaAtributo(linha, _planos.back());
+        }
+        else if (_clsElementoCorrente == EClasseElemento::CILINDRO)
+        {
+            ProcessaAtributo(linha, _cilindros.back());
+        }
+        else if (_clsElementoCorrente == EClasseElemento::CONE)
+        {
+            ProcessaAtributo(linha, _cones.back());
+        }
+        else if (_clsElementoCorrente == EClasseElemento::CUBO)
+        {
+            ProcessaAtributo(linha, _cubos.back());
+        }
+        else if (_clsElementoCorrente == EClasseElemento::ESFERA)
+        {
+            ProcessaAtributo(linha, _esferas.back());
+        }
+        else if (_clsElementoCorrente == EClasseElemento::MALHA)
+        {
+            ProcessaAtributo(linha, _malhas.back());
+        }
+        else if (_clsElementoCorrente == EClasseElemento::FONTE_PONTUAL)
+        {
+            ProcessaAtributo(linha, _fontesPontuais.back());
+        }
+        else if (_clsElementoCorrente == EClasseElemento::FONTE_SPOT)
+        {
+            ProcessaAtributo(linha, _fontesSpots.back());
+        }
+        else if (_clsElementoCorrente == EClasseElemento::FONTE_DIRECIONAL)
+        {
+            ProcessaAtributo(linha, _fontesDirecionais.back());
+        }
+
+        return true;
+    }
+
+    void ProcessaAtributo(const std::string& linha, TMetadadosCamera& metadadosElemento)
+    {
+        if (IniciaComPalavraChave(linha, "projecao"))
+        {
+            metadadosElemento.projecao = LeString(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "janela"))
+        {
+            metadadosElemento.janela = LeVetor3D(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "viewport"))
+        {
+            const auto viewport = LeVetor2D(linha);
+            metadadosElemento.vw = static_cast<uint16_t>(viewport.X());
+            metadadosElemento.vh = static_cast<uint16_t>(viewport.Y());
+        }
+        else if (IniciaComPalavraChave(linha, "olho"))
+        {
+            metadadosElemento.olho = LeVetor3D(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "visada"))
+        {
+            metadadosElemento.visada = LeVetor3D(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "cima"))
+        {
+            metadadosElemento.cima = LeVetor3D(linha);
+        }
+    }
+    void ProcessaAtributo(const std::string& linha, TMetadadosMaterial& metadadosElemento)
+    {
+        if (IniciaComPalavraChave(linha, "nome"))
+        {
+            metadadosElemento.nome = LeString(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "kd"))
+        {
+            metadadosElemento.kd = LeVetor3D(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "ke"))
+        {
+            metadadosElemento.ke = LeVetor3D(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "ka"))
+        {
+            metadadosElemento.ka = LeVetor3D(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "m"))
+        {
+            metadadosElemento.m = LeEscalar(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "tex"))
+        {
+            metadadosElemento.texArq = LeString(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "k"))
+        {
+            metadadosElemento.texK = LeEscalar(linha);
+        }
+    }
+    void ProcessaAtributo(const std::string& linha, TMetadadosPlano& metadadosElemento)
+    {
+        if (IniciaComPalavraChave(linha, "nome"))
+        {
+            metadadosElemento.nome = LeString(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "material"))
+        {
+            metadadosElemento.material = LeString(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "posicao"))
+        {
+            metadadosElemento.posicao = LeVetor3D(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "direcao"))
+        {
+            metadadosElemento.direcao = LeVetor3D(linha);
+        }
+    }
+    void ProcessaAtributo(const std::string& linha, TMetadadosCilindro& metadadosElemento)
+    {
+        if (IniciaComPalavraChave(linha, "nome"))
+        {
+            metadadosElemento.nome = LeString(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "material"))
+        {
+            metadadosElemento.material = LeString(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "posicao"))
+        {
+            metadadosElemento.posicao = LeVetor3D(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "direcao"))
+        {
+            metadadosElemento.direcao = LeVetor3D(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "raio"))
+        {
+            metadadosElemento.raio = LeEscalar(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "altura"))
+        {
+            metadadosElemento.altura = LeEscalar(linha);
+        }
+    }
+    void ProcessaAtributo(const std::string& linha, TMetadadosCone& metadadosElemento)
+    {
+        if (IniciaComPalavraChave(linha, "nome"))
+        {
+            metadadosElemento.nome = LeString(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "material"))
+        {
+            metadadosElemento.material = LeString(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "posicao"))
+        {
+            metadadosElemento.posicao = LeVetor3D(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "direcao"))
+        {
+            metadadosElemento.direcao = LeVetor3D(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "raio"))
+        {
+            metadadosElemento.raio = LeEscalar(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "altura"))
+        {
+            metadadosElemento.altura = LeEscalar(linha);
+        }
+    }
+    void ProcessaAtributo(const std::string& linha, TMetadadosCubo& metadadosElemento)
+    {
+        if (IniciaComPalavraChave(linha, "nome"))
+        {
+            metadadosElemento.nome = LeString(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "material"))
+        {
+            metadadosElemento.material = LeString(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "posicao"))
+        {
+            metadadosElemento.posicao = LeVetor3D(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "aresta"))
+        {
+            metadadosElemento.aresta = LeEscalar(linha);
+        }
+    }
+    void ProcessaAtributo(const std::string& linha, TMetadadosEsfera& metadadosElemento)
+    {
+        if (IniciaComPalavraChave(linha, "nome"))
+        {
+            metadadosElemento.nome = LeString(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "material"))
+        {
+            metadadosElemento.material = LeString(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "posicao"))
+        {
+            metadadosElemento.posicao = LeVetor3D(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "raio"))
+        {
+            metadadosElemento.raio = LeEscalar(linha);
+        }
+    }
+    void ProcessaAtributo(const std::string& linha, TMetadadosMalha& metadadosElemento)
+    {
+        if (IniciaComPalavraChave(linha, "nome"))
+        {
+            metadadosElemento.nome = LeString(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "arquivo"))
+        {
+            metadadosElemento.arquivo = LeString(linha);
+        }
+    }
+    void ProcessaAtributo(const std::string& linha, TMetadadosFontePontual& metadadosElemento)
+    {
+        if (IniciaComPalavraChave(linha, "posicao"))
+        {
+            metadadosElemento.posicao = LeVetor3D(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "intensidade"))
+        {
+            metadadosElemento.intensidade = LeVetor3D(linha);
+        }
+    }
+    void ProcessaAtributo(const std::string& linha, TMetadadosFonteSpot& metadadosElemento)
+    {
+        if (IniciaComPalavraChave(linha, "posicao"))
+        {
+            metadadosElemento.posicao = LeVetor3D(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "direcao"))
+        {
+            metadadosElemento.direcao = LeVetor3D(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "intensidade"))
+        {
+            metadadosElemento.intensidade = LeVetor3D(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "angulo"))
+        {
+            metadadosElemento.angulo = LeEscalar(linha);
+        }
+    }
+    void ProcessaAtributo(const std::string& linha, TMetadadosFonteDirecional& metadadosElemento)
+    {
+        if (IniciaComPalavraChave(linha, "direcao"))
+        {
+            metadadosElemento.direcao = LeVetor3D(linha);
+        }
+        else if (IniciaComPalavraChave(linha, "intensidade"))
+        {
+            metadadosElemento.intensidade = LeVetor3D(linha);
+        }
+    }
+
+    void ConverteMateriais()
+    {
+        for (const auto& metadadosElemento : _materiais)
+        {
+            _materiaisCadastrados[metadadosElemento.nome] = Converte(metadadosElemento);
+        }
+    }
+
+    TCamera Converte(const TMetadadosCamera& metadadosElemento) const
+    {
+        auto modoProjecao = metadadosElemento.projecao == "perspectiva"
+            ? TCamera::EProjecao::PERSPECTIVA
+            : TCamera::EProjecao::PARALELA;
+
+        return TCamera()
+                .Projecao(modoProjecao)
+                .Janela(metadadosElemento.janela.X(), metadadosElemento.janela.Y())
+                .DistanciaFocal(metadadosElemento.janela.Z())
+                .Viewport(metadadosElemento.vw, metadadosElemento.vh)
+                .OlhoObservador(metadadosElemento.olho)
+                .Visada(metadadosElemento.visada)
+                .Cima(metadadosElemento.cima)
+                .Init();
+    }
+    TMaterial Converte(const TMetadadosMaterial& metadadosElemento) const
+    {
+        TMaterial m;
+        m.KaR(metadadosElemento.ka.X());
+        m.KaG(metadadosElemento.ka.Y());
+        m.KaB(metadadosElemento.ka.Z());
+        m.KdR(metadadosElemento.kd.X());
+        m.KdG(metadadosElemento.kd.Y());
+        m.KdB(metadadosElemento.kd.Z());
+        m.KeR(metadadosElemento.ke.X());
+        m.KeG(metadadosElemento.ke.Y());
+        m.KeB(metadadosElemento.ke.Z());
+        m.M(metadadosElemento.m);
+
+        if (metadadosElemento.texArq != "")
+        {
+            m.CarregaTextura(metadadosElemento.texArq);
+            if (m.Textura() != nullptr)
+            {
+                m.Textura()->K(metadadosElemento.texK);
+            }
+        }
+
+        return m;
+    }
+    TPlano Converte(const TMetadadosPlano& metadadosElemento) const
+    {
+        TPlano plano { metadadosElemento.posicao, metadadosElemento.direcao };
+        plano.Rotulo(metadadosElemento.nome);
+        plano.Material(MaterialCadastrado(metadadosElemento.material));
+
+        return plano;
+    }
+    TCilindro Converte(const TMetadadosCilindro& metadadosElemento) const
+    {
+        TCilindro cilindro {
+            metadadosElemento.posicao,
+            metadadosElemento.raio,
+            metadadosElemento.altura,
+            metadadosElemento.direcao
+        };
+
+        cilindro.Rotulo(metadadosElemento.nome);
+        cilindro.Material(MaterialCadastrado(metadadosElemento.material));
+
+        return cilindro;
+    }
+    TCone Converte(const TMetadadosCone& metadadosElemento) const
+    {
+        TCone cone {
+            metadadosElemento.posicao,
+            metadadosElemento.raio,
+            metadadosElemento.altura,
+            metadadosElemento.direcao
+        };
+
+        cone.Rotulo(metadadosElemento.nome);
+        cone.Material(MaterialCadastrado(metadadosElemento.material));
+
+        return cone;
+    }
+    TCubo Converte(const TMetadadosCubo& metadadosElemento) const
+    {
+        TCubo cubo { metadadosElemento.posicao, metadadosElemento.aresta };
+        cubo.Rotulo(metadadosElemento.nome);
+        cubo.Material(MaterialCadastrado(metadadosElemento.material));
+
+        return cubo;
+    }
+    TEsfera Converte(const TMetadadosEsfera& metadadosElemento) const
+    {
+        TEsfera esfera { metadadosElemento.posicao, metadadosElemento.raio };
+        esfera.Rotulo(metadadosElemento.nome);
+        esfera.Material(MaterialCadastrado(metadadosElemento.material));
+
+        return esfera;
+    }
+    TMalha3D Converte(const TMetadadosMalha& metadadosElemento) const
+    {
+        TMalha3D malha;
+        malha.Rotulo(metadadosElemento.nome);
+        TLeitorMalha3D::Carrega(metadadosElemento.arquivo, malha);
+
+        return malha;
+    }
+    TFontePontual Converte(const TMetadadosFontePontual& metadadosElemento) const
+    {
+        return TFontePontual { metadadosElemento.posicao, metadadosElemento.intensidade };
+    }
+    TFonteSpot Converte(const TMetadadosFonteSpot& metadadosElemento) const
+    {
+        return TFonteSpot {
+            metadadosElemento.posicao,
+            metadadosElemento.direcao,
+            metadadosElemento.intensidade,
+            FuncoesGerais::Deg2Rad(metadadosElemento.angulo)
+        };
+    }
+    TFonteDirecional Converte(const TMetadadosFonteDirecional& metadadosElemento) const
+    {
+        return TFonteDirecional { metadadosElemento.direcao, metadadosElemento.intensidade };
+    }
+
+    TMaterial MaterialCadastrado(const std::string& nome) const
+    {
+        TMaterial m;
+
+        auto it = _materiaisCadastrados.find(nome);
+        if (it != _materiaisCadastrados.end())
+        {
+            m = it->second;
+        }
+
+        return m;
+    }
+
+    std::ifstream _is;
+
+    EClasseElemento _clsElementoCorrente = EClasseElemento::NENHUM;
+
+    TCor _bgColor { 0u, 0u, 0u };
+    double _iAmbR = 0.0;
+    double _iAmbG = 0.0;
+    double _iAmbB = 0.0;
+
+    TMetadadosCamera _camera;
+    std::vector<TMetadadosMaterial> _materiais;
+    std::vector<TMetadadosPlano> _planos;
+    std::vector<TMetadadosCilindro> _cilindros;
+    std::vector<TMetadadosCone> _cones;
+    std::vector<TMetadadosCubo> _cubos;
+    std::vector<TMetadadosEsfera> _esferas;
+    std::vector<TMetadadosMalha> _malhas;
+    std::vector<TMetadadosFontePontual> _fontesPontuais;
+    std::vector<TMetadadosFonteSpot> _fontesSpots;
+    std::vector<TMetadadosFonteDirecional> _fontesDirecionais;
+
+    std::unordered_map<std::string, TMaterial> _materiaisCadastrados;
 };
 
 // ------------------------------------------------------------------------------------------------
