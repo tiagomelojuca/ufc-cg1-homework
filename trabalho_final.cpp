@@ -1685,6 +1685,39 @@ private:
 
 // ------------------------------------------------------------------------------------------------
 
+class TFonteDirecional : public IFonteLuminosa
+{
+public:
+    TFonteDirecional() = default;
+    TFonteDirecional(const TVetor3D& direcao, const TVetor3D& intensidade)
+        : _d(direcao.Oposto().Normalizado()), _i(intensidade) {}
+
+    IFonteLuminosa* Copia() const override
+    {
+        return new TFonteDirecional(*this);
+    }
+
+    TVetor3D L(const TPonto3D& pi) const override
+    {
+        return Direcao();
+    }
+    TVetor3D I(const TVetor3D& l) const override
+    {
+        return _i;
+    }
+
+    const TVetor3D& Direcao() const
+    {
+        return _d;
+    }
+
+protected:
+    TVetor3D _d;
+    TVetor3D _i;
+};
+
+// ------------------------------------------------------------------------------------------------
+
 class IEntidade3D
 {
 public:
@@ -3866,9 +3899,31 @@ private:
                     {
                         const double intersecaoMaisProxima = intersecoes[0];
 
-                        if (intersecaoMaisProxima < L.Norma())
+                        if (dynamic_cast<const TFontePontual*>(fonte.get()))
                         {
-                            temOutraEntidadeBloqueandoLuz = true;
+                            temOutraEntidadeBloqueandoLuz = intersecaoMaisProxima < L.Norma();
+                        }
+                        else
+                        {
+                            // Isso aqui eh uma gambiarra. Talvez mude depois, mas por ora vou manter assim
+                            // Fisicamente, o mais correto seria simplesmente setar true aqui ao encontrar
+                            // uma interseccao, mas nossa sala eh delimitada por planos infinitos, de forma que
+                            // uma luz externa jamais chegaria, pois uma luz direcional nada mais eh que
+                            // raios paralelos sem posicao especifica, vindos do infinito, de forma que,
+                            // na nossa sala, sempre existe um elemento que bloqueia a luz (o raio infinito
+                            // sempre intercepta alguem, mesmo que fora da regiao visivel). Para contornar,
+                            // aplicamos um backface-culling forcado, ignorando para o calculo da sombra as
+                            // faces dos planos que sao interceptadas e bloqueariam a luz
+                            const TPonto3D pIntersecaoMaisProxima = shadowRay.Ponto(intersecaoMaisProxima);
+                            const TVetor3D nEntidade = outraEntidade->Normal(pIntersecaoMaisProxima, shadowRay);
+                            temOutraEntidadeBloqueandoLuz = nEntidade.Dot(l) >= 0.0;
+
+                            // temOutraEntidadeBloqueandoLuz = true;
+                        }
+
+                        if (temOutraEntidadeBloqueandoLuz)
+                        {
+                            break;
                         }
                     }
                 }
@@ -4055,6 +4110,11 @@ namespace Mocks
         return { { 0.0, 0.0, 0.0 }, { 0.0, 0.0, -1.0 }, { 0.7, 0.7, 0.7 }, FuncoesGerais::Deg2Rad(30.0) };
     }
 
+    TFonteDirecional FabricaFonteDirecional()
+    {
+        return { { -1.0, 1.0, 1.0 }, { 0.7, 0.7, 0.7 } };
+    }
+
     TCamera FabricaCamera()
     {
         // Constroi uma camera identidade (espaco de camera = espaco de mundo),
@@ -4101,7 +4161,7 @@ namespace Mocks
     {
         const TPonto3D p0 { 0.0, 0.0, 0.0 };
 
-        TCena3D cena { p0, FabricaCameraOrtograficaComArtefatos() };
+        TCena3D cena { p0, FabricaCamera() };
         cena.BgColor({ 100u, 100u, 100u });
         cena.IambR(0.3);
         cena.IambG(0.3);
@@ -4116,8 +4176,9 @@ namespace Mocks
         cena.Insere(FabricaCone());
         cena.Insere(FabricaCubo());
         cena.Insere(FabricaEsfera());
-        cena.Insere(FabricaFontePontual());
+        // cena.Insere(FabricaFontePontual());
         // cena.Insere(FabricaFonteSpot());
+        cena.Insere(FabricaFonteDirecional());
 
         cena.PodeRenderizarMultiThread(false);
 
