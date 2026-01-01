@@ -3005,6 +3005,507 @@ private:
 
 // ------------------------------------------------------------------------------------------------
 
+class TCamera
+{
+public:
+    enum class EProjecao { PERSPECTIVA, PARALELA };
+
+    TCamera() = default;
+
+    TCamera& Projecao(EProjecao proj)
+    {
+        _modoProjecao = proj;
+
+        return *this;
+    }
+    TCamera& Janela(double w, double h)
+    {
+        _wJanela = w;
+        _hJanela = h;
+
+        return *this;
+    }
+    TCamera& Viewport(uint16_t w, uint16_t h)
+    {
+        _wCanvas = w;
+        _hCanvas = h;
+
+        return *this;
+    }
+    TCamera& DistanciaFocal(double d)
+    {
+        _d = d;
+
+        return *this;
+    }
+    TCamera& OlhoObservador(const TPonto3D& pEye)
+    {
+        _pEye = pEye;
+
+        return *this;
+    }
+    TCamera& Visada(const TPonto3D& at)
+    {
+        _atPoint = at;
+
+        return *this;
+    }
+    TCamera& Cima(const TVetor3D& up)
+    {
+        _lookUp = up;
+
+        return *this;
+    }
+
+    TCamera& Init()
+    {
+        _w = TVetor3D(_pEye - _atPoint).Normalizado();
+        _u = _lookUp.Vetorial(_w).Normalizado();
+        _v = _w.Vetorial(_u);
+
+        _dx = _wJanela / _wCanvas;
+        _dy = _hJanela / _hCanvas;
+
+        return *this;
+    }
+
+    TCamera& ZoomIn()
+    {
+        _wJanela /= _fatorZoom;
+        _hJanela /= _fatorZoom;
+        Init();
+
+        return *this;
+    }
+    TCamera& ZoomOut()
+    {
+        _wJanela *= _fatorZoom;
+        _hJanela *= _fatorZoom;
+        Init();
+
+        return *this;
+    }
+    TCamera& FatorZoom(double fz)
+    {
+        _fatorZoom = fz;
+
+        return *this;
+    }
+
+    double Largura() const { return _wJanela; }
+    double Altura() const { return _hJanela; }
+    uint16_t LarguraCanvas() const { return _wCanvas; }
+    uint16_t AlturaCanvas() const { return _hCanvas; }
+
+    TRaio3D RaioMundo(uint16_t x, uint16_t y) const
+    {
+        return _modoProjecao == EProjecao::PERSPECTIVA
+            ? RaioMundoProjecaoPerspectiva(x, y)
+            : RaioMundoProjecaoParalela(x, y);
+    }
+
+private:
+    TRaio3D RaioMundoProjecaoPerspectiva(uint16_t x, uint16_t y) const
+    {
+        const double px = -0.5 * _wJanela + 0.5 * _dx + x * _dx;
+        const double py =  0.5 * _hJanela - 0.5 * _dy - y * _dy;
+        const double pz = -_d;
+
+        const TPonto3D pCamera { px, py, pz };
+        const TPonto3D pOrigemCamera { 0.0, 0.0, 0.0 }; // p0
+        const TVetor3D direcaoRaioCamera = FuncoesGeometricas::Versor(pOrigemCamera, pCamera);
+
+        const TVetor3D u_ = _u * direcaoRaioCamera.X();
+        const TVetor3D v_ = _v * direcaoRaioCamera.Y();
+        const TVetor3D w_ = _w * direcaoRaioCamera.Z();
+
+        const TPonto3D& pOrigemMundo = _pEye;
+        const TVetor3D direcaoRaioMundo = u_ + v_ + w_;
+
+        return TRaio3D { pOrigemMundo, direcaoRaioMundo };
+    }
+    TRaio3D RaioMundoProjecaoParalela(uint16_t x, uint16_t y) const
+    {
+        const double px = -0.5 * _wJanela + 0.5 * _dx + x * _dx;
+        const double py =  0.5 * _hJanela - 0.5 * _dy - y * _dy;
+        const double pz = -_d;
+
+        const TPonto3D pCamera { px, py, pz };
+        const TPonto3D pOrigemCamera = pCamera; // p0
+
+        const TVetor3D u_ = _u * pOrigemCamera.X();
+        const TVetor3D v_ = _v * pOrigemCamera.Y();
+        const TVetor3D w_ = _w * pOrigemCamera.Z();
+
+        const TPonto3D& pOrigemMundo = _pEye + u_ + v_ + w_;
+        const TVetor3D direcaoRaioMundo = _w * -1.0;
+
+        return TRaio3D { pOrigemMundo, direcaoRaioMundo };
+    }
+
+    EProjecao _modoProjecao = EProjecao::PERSPECTIVA;
+
+    double _wJanela = 0.0; // define o campo de visao horizontal (fovX)
+    double _hJanela = 0.0; // define o campo de visao vertical   (fovY)
+    uint16_t _wCanvas = 0; // largura da viewport
+    uint16_t _hCanvas = 0; // altura  da viewport
+
+    TPonto3D _pEye;    // olho do observador / posicao da camera
+    TPonto3D _atPoint; // direcionamento de visada
+    TVetor3D _lookUp;  // orientacao da camera em torno do eixo de visada
+    double _d = 0.0;   // distancia focal
+
+    TVetor3D _w; // z da camera, sentido positivo para tras dela
+    TVetor3D _u; // x da camera, calculado pelo z dela e o upVector fornecido
+    TVetor3D _v; // y da camera, pela regra da mao direita
+
+    double _dx = 0.0;
+    double _dy = 0.0;
+    double _fatorZoom = 1.25;
+};
+
+// ------------------------------------------------------------------------------------------------
+
+struct THit
+{
+    IEntidade3D* entidade;
+    double interseccao;
+};
+
+// ------------------------------------------------------------------------------------------------
+
+class TCena3D
+{
+public:
+    TCena3D() = default;
+    TCena3D(const TPonto3D& origem, const TCamera& camera) : _camera(camera), _p0(origem) {}
+
+    const TCamera& Camera() const { return _camera; }
+    TCamera& Camera() { return _camera; }
+    void Camera(const TCamera& camera) { _camera = camera; }
+
+    const TPonto3D& Origem() const { return _p0; }
+    void Origem(const TPonto3D& p0) { _p0 = p0; }
+
+    const TCor& BgColor() const { return _bgColor; }
+    void BgColor(const TCor& cor) { _bgColor = cor; }
+
+    double IambR() const
+    {
+        return _iAmbR;
+    }
+    void IambR(double iAmbR)
+    {
+        _iAmbR = iAmbR;
+    }
+    double IambG() const
+    {
+        return _iAmbG;
+    }
+    void IambG(double iAmbG)
+    {
+        _iAmbG = iAmbG;
+    }
+    double IambB() const
+    {
+        return _iAmbB;
+    }
+    void IambB(double iAmbB)
+    {
+        _iAmbB = iAmbB;
+    }
+
+    void Insere(const IEntidade3D& entidade)
+    {
+        _entidades.push_back(std::unique_ptr<IEntidade3D>(entidade.Copia()));
+    }
+    void Insere(const IFonteLuminosa& fonte)
+    {
+        _fontes.push_back(std::unique_ptr<IFonteLuminosa>(fonte.Copia()));
+    }
+
+    void Renderiza(IDispositivoSaida& arq)
+    {
+        if (_podeRenderizarMT)
+        {
+            RenderizaMultiThread(arq);
+        }
+        else
+        {
+            RenderizaSingleThread(arq);
+        }
+    }
+
+    std::string Pick(uint16_t x, uint16_t y)
+    {
+        const TRaio3D raio = _camera.RaioMundo(x, y);
+        const THit hit = ColisaoMaisProxima(raio);
+
+        if (hit.entidade == nullptr)
+        {
+            return "NENHUM";
+        }
+
+        if (auto entidadeComposta = dynamic_cast<const TEntidadeComposta*>(hit.entidade))
+        {
+            std::string rotulo = entidadeComposta->Rotulo(raio);
+
+            if (rotulo == "")
+            {
+                rotulo = entidadeComposta->Rotulo();
+            }
+
+            return rotulo;
+        }
+
+        return hit.entidade->Rotulo();
+    }
+
+    // Nao sei se "colisao" eh uma boa traducao/adaptacao para hit, mas enfim
+    // pensei em deixar em ingles, NearestHit ou ClosestHit, ja misturei mesmo
+    THit ColisaoMaisProxima(const TRaio3D& raio) const
+    {
+        double intersecaoMaisProximaObservador = std::numeric_limits<double>::max();
+        IEntidade3D* entidadeMaisProximaObservador = nullptr;
+
+        for (const std::unique_ptr<IEntidade3D>& entidade : _entidades)
+        {
+            const std::vector<double> intersecoesValidas = FuncoesGeometricas::IntersecoesValidas(*entidade, raio);
+            if (!intersecoesValidas.empty())
+            {
+                const double intersecaoEntidadeMaisProximaObservador = intersecoesValidas[0];
+                if (intersecaoEntidadeMaisProximaObservador < intersecaoMaisProximaObservador)
+                {
+                    intersecaoMaisProximaObservador = intersecaoEntidadeMaisProximaObservador;
+                    entidadeMaisProximaObservador = entidade.get();
+                }
+            }
+        }
+
+        return { entidadeMaisProximaObservador, intersecaoMaisProximaObservador };
+    }
+
+    void Log(const std::string& msg) const
+    {
+        if (_arqLog != nullptr)
+        {
+            _arqLog->Anexa(msg);
+        }
+    }
+
+    void PodeRenderizarMultiThread(bool mt)
+    {
+        _podeRenderizarMT = mt;
+    }
+
+private:
+    void RenderizaSingleThread(IDispositivoSaida& arq)
+    {
+        if (auto arqLog = dynamic_cast<TArquivoLOG*>(&arq))
+        {
+            _arqLog = arqLog;
+        }
+
+        const uint16_t nLinhas = _camera.AlturaCanvas();
+        const uint16_t nColunas = _camera.LarguraCanvas();
+
+        for (int l = 0; l < nLinhas; l++)
+        {
+            for (int c = 0; c < nColunas; c++)
+            {
+                arq.Anexa(Cor(Camera().RaioMundo(c, l)));
+            }
+        }
+
+        _arqLog = nullptr;
+        arq.Flush();
+    }
+
+    void RenderizaMultiThread(IDispositivoSaida& arq)
+    {
+        struct RenderJob
+        {
+            RenderJob(IDispositivoSaida& arq, TCena3D& c, int y0, int y1)
+                : arq(arq), c(c), y0(y0), y1(y1) {};
+
+            void operator()()
+            {
+                for (int y = y0; y < y1; y++)
+                    for (int x = 0; x < W(); x++)
+                        arq.Anexa(c.Cor(c.Camera().RaioMundo(x, y)));
+            }
+
+            uint16_t W() const
+            {
+                return c.Camera().LarguraCanvas();
+            }
+
+            IDispositivoSaida& arq;
+            TCena3D& c;
+            int y0, y1;
+        };
+
+        const uint16_t h = _camera.AlturaCanvas();
+        const int n = std::thread::hardware_concurrency();
+        const int linhas = h / n;
+
+        std::vector<std::thread> threads;
+        for (int i = 0; i < n; i++)
+        {
+            int y0 = i * linhas;
+            int y1 = (i == n - 1) ? h : y0 + linhas;
+            threads.emplace_back(RenderJob { arq, *this, y0, y1 });
+        }
+
+        for (auto& t : threads) t.join();
+
+        // const uint16_t nLinhas = _camera.AlturaCanvas();
+        // const uint16_t nColunas = _camera.LarguraCanvas();
+
+        // const double z = _camera.Centro().Z();
+        // for (int l = 0; l < nLinhas; l++)
+        // {
+        //     const double y = _camera.Y(l);
+
+        //     for (int c = 0; c < nColunas; c++)
+        //     {
+        //         const double x = _camera.X(c);
+
+        //         arq.Anexa({ 255u, 0u, 0u });
+        //     }
+        // }
+
+        // arq.Flush();
+    }
+
+    TCor Cor(const TRaio3D& raio) const
+    {
+        const THit hit = ColisaoMaisProxima(raio);
+        const IEntidade3D* entidadeMaisProximaObservador = hit.entidade;
+        const double intersecaoMaisProximaObservador = hit.interseccao;
+
+        TCor pixel = _bgColor;
+
+        if (entidadeMaisProximaObservador != nullptr)
+        {
+            pixel = Cor(*entidadeMaisProximaObservador, raio, intersecaoMaisProximaObservador);
+        }
+
+        return pixel;
+    }
+
+    // Segundo o ChatGPT, essa minha funcao aqui seria meu "shader", escrito "na mao"
+    // Ouco muito falar em shader, mas nao entendo bem o que eh. Grosso modo, ele
+    // disse que eh a funcao que calcula a cor final de um pixel (renderiza um pixel?),
+    // entao no meu caso seria essa junto com a de cima (mas principalmente essa)
+    TCor Cor(const IEntidade3D& entidade, const TRaio3D& raio, double ti) const
+    {
+        const TPonto3D pi = raio.Ponto(ti);
+        const TCoordenadasUV uv = entidade.CoordenadasUV(pi, raio);
+
+        const TMaterial& material = entidade.Material(raio);
+        const double kdR = material.KdR(uv.u, uv.v);
+        const double kdG = material.KdG(uv.u, uv.v);
+        const double kdB = material.KdB(uv.u, uv.v);
+        const TPonto3D kd { kdR, kdG, kdB };
+        const TPonto3D ke { material.KeR(), material.KeG(), material.KeB() };
+        const TPonto3D ka { material.KaR(), material.KaG(), material.KaB() };
+
+        const TVetor3D iAmb { IambR(), IambG(), IambB() };
+        const auto ia = iAmb.Arroba(ka);
+
+        const TVetor3D n = entidade.Normal(pi, raio);
+        const TVetor3D v = raio.Direcao() * -1.0;
+
+        TVetor3D i = ia;
+        for (const std::unique_ptr<IFonteLuminosa>& fonte : _fontes)
+        {
+            const TVetor3D L = fonte->L(pi);
+            const TVetor3D l = L.Normalizado();
+            const TVetor3D iFonte = fonte->I(l);
+
+            const TRaio3D shadowRay { pi, l };
+
+            bool temOutraEntidadeBloqueandoLuz = false;
+            for (const std::unique_ptr<IEntidade3D>& outraEntidade : _entidades)
+            {
+                if (&entidade != outraEntidade.get())
+                {
+                    const std::vector<double> intersecoes = FuncoesGeometricas::IntersecoesValidas(
+                        *outraEntidade, shadowRay
+                    );
+                    
+                    if (!intersecoes.empty())
+                    {
+                        const double intersecaoMaisProxima = intersecoes[0];
+
+                        if (dynamic_cast<const TFontePontual*>(fonte.get()))
+                        {
+                            temOutraEntidadeBloqueandoLuz = intersecaoMaisProxima < L.Norma();
+                        }
+                        else
+                        {
+                            // Isso aqui eh uma gambiarra. Talvez mude depois, mas por ora vou manter assim
+                            // Fisicamente, o mais correto seria simplesmente setar true aqui ao encontrar
+                            // uma interseccao, mas nossa sala eh delimitada por planos infinitos, de forma que
+                            // uma luz externa jamais chegaria, pois uma luz direcional nada mais eh que
+                            // raios paralelos sem posicao especifica, vindos do infinito, de forma que,
+                            // na nossa sala, sempre existe um elemento que bloqueia a luz (o raio infinito
+                            // sempre intercepta alguem, mesmo que fora da regiao visivel). Para contornar,
+                            // aplicamos um backface-culling forcado, ignorando para o calculo da sombra as
+                            // faces dos planos que sao interceptadas e bloqueariam a luz
+                            const TPonto3D pIntersecaoMaisProxima = shadowRay.Ponto(intersecaoMaisProxima);
+                            const TVetor3D nEntidade = outraEntidade->Normal(pIntersecaoMaisProxima, shadowRay);
+                            temOutraEntidadeBloqueandoLuz = nEntidade.Dot(l) >= 0.0;
+
+                            // temOutraEntidadeBloqueandoLuz = true;
+                        }
+
+                        if (temOutraEntidadeBloqueandoLuz)
+                        {
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (!temOutraEntidadeBloqueandoLuz)
+            {
+                const TVetor3D r = (n * 2.0 * n.Dot(l)) - l;
+                const double fd = std::max(0.0, n.Dot(l));
+                const double fe = pow(std::max(v.Dot(r), 0.0), material.M());
+
+                const auto id = iFonte.Arroba(kd) * fd;
+                const auto ie = iFonte.Arroba(ke) * fe;
+
+                const TVetor3D iCorrente = id + ie;
+                i += iCorrente;
+            }
+        }
+
+        TVetor3D c = i.Arroba(TVetor3D(255.0, 255.0, 255.0));
+        c.Clamp(0.0, 255.0);
+
+        return FuncoesGerais::Vec2Cor(c);
+    }
+
+    TArquivoLOG* _arqLog = nullptr;
+    bool _podeRenderizarMT = false;
+
+    TCamera _camera;
+    TPonto3D _p0; // olho do pintor (origem)
+
+    TCor _bgColor;
+    double _iAmbR = 0.0;
+    double _iAmbG = 0.0;
+    double _iAmbB = 0.0;
+
+    std::vector<std::unique_ptr<IEntidade3D>> _entidades;
+    std::vector<std::unique_ptr<IFonteLuminosa>> _fontes;
+};
+
+// ------------------------------------------------------------------------------------------------
+
 class TLeitorArquivoTextual
 {
 public:
@@ -3508,507 +4009,6 @@ public:
 
 private:
     std::ifstream _is; // .scn
-};
-
-// ------------------------------------------------------------------------------------------------
-
-class TCamera
-{
-public:
-    enum class EProjecao { PERSPECTIVA, PARALELA };
-
-    TCamera() = default;
-
-    TCamera& Projecao(EProjecao proj)
-    {
-        _modoProjecao = proj;
-
-        return *this;
-    }
-    TCamera& Janela(double w, double h)
-    {
-        _wJanela = w;
-        _hJanela = h;
-
-        return *this;
-    }
-    TCamera& Viewport(uint16_t w, uint16_t h)
-    {
-        _wCanvas = w;
-        _hCanvas = h;
-
-        return *this;
-    }
-    TCamera& DistanciaFocal(double d)
-    {
-        _d = d;
-
-        return *this;
-    }
-    TCamera& OlhoObservador(const TPonto3D& pEye)
-    {
-        _pEye = pEye;
-
-        return *this;
-    }
-    TCamera& Visada(const TPonto3D& at)
-    {
-        _atPoint = at;
-
-        return *this;
-    }
-    TCamera& Cima(const TVetor3D& up)
-    {
-        _lookUp = up;
-
-        return *this;
-    }
-
-    TCamera& Init()
-    {
-        _w = TVetor3D(_pEye - _atPoint).Normalizado();
-        _u = _lookUp.Vetorial(_w).Normalizado();
-        _v = _w.Vetorial(_u);
-
-        _dx = _wJanela / _wCanvas;
-        _dy = _hJanela / _hCanvas;
-
-        return *this;
-    }
-
-    TCamera& ZoomIn()
-    {
-        _wJanela /= _fatorZoom;
-        _hJanela /= _fatorZoom;
-        Init();
-
-        return *this;
-    }
-    TCamera& ZoomOut()
-    {
-        _wJanela *= _fatorZoom;
-        _hJanela *= _fatorZoom;
-        Init();
-
-        return *this;
-    }
-    TCamera& FatorZoom(double fz)
-    {
-        _fatorZoom = fz;
-
-        return *this;
-    }
-
-    double Largura() const { return _wJanela; }
-    double Altura() const { return _hJanela; }
-    uint16_t LarguraCanvas() const { return _wCanvas; }
-    uint16_t AlturaCanvas() const { return _hCanvas; }
-
-    TRaio3D RaioMundo(uint16_t x, uint16_t y) const
-    {
-        return _modoProjecao == EProjecao::PERSPECTIVA
-            ? RaioMundoProjecaoPerspectiva(x, y)
-            : RaioMundoProjecaoParalela(x, y);
-    }
-
-private:
-    TRaio3D RaioMundoProjecaoPerspectiva(uint16_t x, uint16_t y) const
-    {
-        const double px = -0.5 * _wJanela + 0.5 * _dx + x * _dx;
-        const double py =  0.5 * _hJanela - 0.5 * _dy - y * _dy;
-        const double pz = -_d;
-
-        const TPonto3D pCamera { px, py, pz };
-        const TPonto3D pOrigemCamera { 0.0, 0.0, 0.0 }; // p0
-        const TVetor3D direcaoRaioCamera = FuncoesGeometricas::Versor(pOrigemCamera, pCamera);
-
-        const TVetor3D u_ = _u * direcaoRaioCamera.X();
-        const TVetor3D v_ = _v * direcaoRaioCamera.Y();
-        const TVetor3D w_ = _w * direcaoRaioCamera.Z();
-
-        const TPonto3D& pOrigemMundo = _pEye;
-        const TVetor3D direcaoRaioMundo = u_ + v_ + w_;
-
-        return TRaio3D { pOrigemMundo, direcaoRaioMundo };
-    }
-    TRaio3D RaioMundoProjecaoParalela(uint16_t x, uint16_t y) const
-    {
-        const double px = -0.5 * _wJanela + 0.5 * _dx + x * _dx;
-        const double py =  0.5 * _hJanela - 0.5 * _dy - y * _dy;
-        const double pz = -_d;
-
-        const TPonto3D pCamera { px, py, pz };
-        const TPonto3D pOrigemCamera = pCamera; // p0
-
-        const TVetor3D u_ = _u * pOrigemCamera.X();
-        const TVetor3D v_ = _v * pOrigemCamera.Y();
-        const TVetor3D w_ = _w * pOrigemCamera.Z();
-
-        const TPonto3D& pOrigemMundo = _pEye + u_ + v_ + w_;
-        const TVetor3D direcaoRaioMundo = _w * -1.0;
-
-        return TRaio3D { pOrigemMundo, direcaoRaioMundo };
-    }
-
-    EProjecao _modoProjecao = EProjecao::PERSPECTIVA;
-
-    double _wJanela = 0.0; // define o campo de visao horizontal (fovX)
-    double _hJanela = 0.0; // define o campo de visao vertical   (fovY)
-    uint16_t _wCanvas = 0; // largura da viewport
-    uint16_t _hCanvas = 0; // altura  da viewport
-
-    TPonto3D _pEye;    // olho do observador / posicao da camera
-    TPonto3D _atPoint; // direcionamento de visada
-    TVetor3D _lookUp;  // orientacao da camera em torno do eixo de visada
-    double _d = 0.0;   // distancia focal
-
-    TVetor3D _w; // z da camera, sentido positivo para tras dela
-    TVetor3D _u; // x da camera, calculado pelo z dela e o upVector fornecido
-    TVetor3D _v; // y da camera, pela regra da mao direita
-
-    double _dx = 0.0;
-    double _dy = 0.0;
-    double _fatorZoom = 1.25;
-};
-
-// ------------------------------------------------------------------------------------------------
-
-struct THit
-{
-    IEntidade3D* entidade;
-    double interseccao;
-};
-
-// ------------------------------------------------------------------------------------------------
-
-class TCena3D
-{
-public:
-    TCena3D() = default;
-    TCena3D(const TPonto3D& origem, const TCamera& camera) : _camera(camera), _p0(origem) {}
-
-    const TCamera& Camera() const { return _camera; }
-    TCamera& Camera() { return _camera; }
-    void Camera(const TCamera& camera) { _camera = camera; }
-
-    const TPonto3D& Origem() const { return _p0; }
-    void Origem(const TPonto3D& p0) { _p0 = p0; }
-
-    const TCor& BgColor() const { return _bgColor; }
-    void BgColor(const TCor& cor) { _bgColor = cor; }
-
-    double IambR() const
-    {
-        return _iAmbR;
-    }
-    void IambR(double iAmbR)
-    {
-        _iAmbR = iAmbR;
-    }
-    double IambG() const
-    {
-        return _iAmbG;
-    }
-    void IambG(double iAmbG)
-    {
-        _iAmbG = iAmbG;
-    }
-    double IambB() const
-    {
-        return _iAmbB;
-    }
-    void IambB(double iAmbB)
-    {
-        _iAmbB = iAmbB;
-    }
-
-    void Insere(const IEntidade3D& entidade)
-    {
-        _entidades.push_back(std::unique_ptr<IEntidade3D>(entidade.Copia()));
-    }
-    void Insere(const IFonteLuminosa& fonte)
-    {
-        _fontes.push_back(std::unique_ptr<IFonteLuminosa>(fonte.Copia()));
-    }
-
-    void Renderiza(IDispositivoSaida& arq)
-    {
-        if (_podeRenderizarMT)
-        {
-            RenderizaMultiThread(arq);
-        }
-        else
-        {
-            RenderizaSingleThread(arq);
-        }
-    }
-
-    std::string Pick(uint16_t x, uint16_t y)
-    {
-        const TRaio3D raio = _camera.RaioMundo(x, y);
-        const THit hit = ColisaoMaisProxima(raio);
-
-        if (hit.entidade == nullptr)
-        {
-            return "NENHUM";
-        }
-
-        if (auto entidadeComposta = dynamic_cast<const TEntidadeComposta*>(hit.entidade))
-        {
-            std::string rotulo = entidadeComposta->Rotulo(raio);
-
-            if (rotulo == "")
-            {
-                rotulo = entidadeComposta->Rotulo();
-            }
-
-            return rotulo;
-        }
-
-        return hit.entidade->Rotulo();
-    }
-
-    // Nao sei se "colisao" eh uma boa traducao/adaptacao para hit, mas enfim
-    // pensei em deixar em ingles, NearestHit ou ClosestHit, ja misturei mesmo
-    THit ColisaoMaisProxima(const TRaio3D& raio) const
-    {
-        double intersecaoMaisProximaObservador = std::numeric_limits<double>::max();
-        IEntidade3D* entidadeMaisProximaObservador = nullptr;
-
-        for (const std::unique_ptr<IEntidade3D>& entidade : _entidades)
-        {
-            const std::vector<double> intersecoesValidas = FuncoesGeometricas::IntersecoesValidas(*entidade, raio);
-            if (!intersecoesValidas.empty())
-            {
-                const double intersecaoEntidadeMaisProximaObservador = intersecoesValidas[0];
-                if (intersecaoEntidadeMaisProximaObservador < intersecaoMaisProximaObservador)
-                {
-                    intersecaoMaisProximaObservador = intersecaoEntidadeMaisProximaObservador;
-                    entidadeMaisProximaObservador = entidade.get();
-                }
-            }
-        }
-
-        return { entidadeMaisProximaObservador, intersecaoMaisProximaObservador };
-    }
-
-    void Log(const std::string& msg) const
-    {
-        if (_arqLog != nullptr)
-        {
-            _arqLog->Anexa(msg);
-        }
-    }
-
-    void PodeRenderizarMultiThread(bool mt)
-    {
-        _podeRenderizarMT = mt;
-    }
-
-private:
-    void RenderizaSingleThread(IDispositivoSaida& arq)
-    {
-        if (auto arqLog = dynamic_cast<TArquivoLOG*>(&arq))
-        {
-            _arqLog = arqLog;
-        }
-
-        const uint16_t nLinhas = _camera.AlturaCanvas();
-        const uint16_t nColunas = _camera.LarguraCanvas();
-
-        for (int l = 0; l < nLinhas; l++)
-        {
-            for (int c = 0; c < nColunas; c++)
-            {
-                arq.Anexa(Cor(Camera().RaioMundo(c, l)));
-            }
-        }
-
-        _arqLog = nullptr;
-        arq.Flush();
-    }
-
-    void RenderizaMultiThread(IDispositivoSaida& arq)
-    {
-        struct RenderJob
-        {
-            RenderJob(IDispositivoSaida& arq, TCena3D& c, int y0, int y1)
-                : arq(arq), c(c), y0(y0), y1(y1) {};
-
-            void operator()()
-            {
-                for (int y = y0; y < y1; y++)
-                    for (int x = 0; x < W(); x++)
-                        arq.Anexa(c.Cor(c.Camera().RaioMundo(x, y)));
-            }
-
-            uint16_t W() const
-            {
-                return c.Camera().LarguraCanvas();
-            }
-
-            IDispositivoSaida& arq;
-            TCena3D& c;
-            int y0, y1;
-        };
-
-        const uint16_t h = _camera.AlturaCanvas();
-        const int n = std::thread::hardware_concurrency();
-        const int linhas = h / n;
-
-        std::vector<std::thread> threads;
-        for (int i = 0; i < n; i++)
-        {
-            int y0 = i * linhas;
-            int y1 = (i == n - 1) ? h : y0 + linhas;
-            threads.emplace_back(RenderJob { arq, *this, y0, y1 });
-        }
-
-        for (auto& t : threads) t.join();
-
-        // const uint16_t nLinhas = _camera.AlturaCanvas();
-        // const uint16_t nColunas = _camera.LarguraCanvas();
-
-        // const double z = _camera.Centro().Z();
-        // for (int l = 0; l < nLinhas; l++)
-        // {
-        //     const double y = _camera.Y(l);
-
-        //     for (int c = 0; c < nColunas; c++)
-        //     {
-        //         const double x = _camera.X(c);
-
-        //         arq.Anexa({ 255u, 0u, 0u });
-        //     }
-        // }
-
-        // arq.Flush();
-    }
-
-    TCor Cor(const TRaio3D& raio) const
-    {
-        const THit hit = ColisaoMaisProxima(raio);
-        const IEntidade3D* entidadeMaisProximaObservador = hit.entidade;
-        const double intersecaoMaisProximaObservador = hit.interseccao;
-
-        TCor pixel = _bgColor;
-
-        if (entidadeMaisProximaObservador != nullptr)
-        {
-            pixel = Cor(*entidadeMaisProximaObservador, raio, intersecaoMaisProximaObservador);
-        }
-
-        return pixel;
-    }
-
-    // Segundo o ChatGPT, essa minha funcao aqui seria meu "shader", escrito "na mao"
-    // Ouco muito falar em shader, mas nao entendo bem o que eh. Grosso modo, ele
-    // disse que eh a funcao que calcula a cor final de um pixel (renderiza um pixel?),
-    // entao no meu caso seria essa junto com a de cima (mas principalmente essa)
-    TCor Cor(const IEntidade3D& entidade, const TRaio3D& raio, double ti) const
-    {
-        const TPonto3D pi = raio.Ponto(ti);
-        const TCoordenadasUV uv = entidade.CoordenadasUV(pi, raio);
-
-        const TMaterial& material = entidade.Material(raio);
-        const double kdR = material.KdR(uv.u, uv.v);
-        const double kdG = material.KdG(uv.u, uv.v);
-        const double kdB = material.KdB(uv.u, uv.v);
-        const TPonto3D kd { kdR, kdG, kdB };
-        const TPonto3D ke { material.KeR(), material.KeG(), material.KeB() };
-        const TPonto3D ka { material.KaR(), material.KaG(), material.KaB() };
-
-        const TVetor3D iAmb { IambR(), IambG(), IambB() };
-        const auto ia = iAmb.Arroba(ka);
-
-        const TVetor3D n = entidade.Normal(pi, raio);
-        const TVetor3D v = raio.Direcao() * -1.0;
-
-        TVetor3D i = ia;
-        for (const std::unique_ptr<IFonteLuminosa>& fonte : _fontes)
-        {
-            const TVetor3D L = fonte->L(pi);
-            const TVetor3D l = L.Normalizado();
-            const TVetor3D iFonte = fonte->I(l);
-
-            const TRaio3D shadowRay { pi, l };
-
-            bool temOutraEntidadeBloqueandoLuz = false;
-            for (const std::unique_ptr<IEntidade3D>& outraEntidade : _entidades)
-            {
-                if (&entidade != outraEntidade.get())
-                {
-                    const std::vector<double> intersecoes = FuncoesGeometricas::IntersecoesValidas(
-                        *outraEntidade, shadowRay
-                    );
-                    
-                    if (!intersecoes.empty())
-                    {
-                        const double intersecaoMaisProxima = intersecoes[0];
-
-                        if (dynamic_cast<const TFontePontual*>(fonte.get()))
-                        {
-                            temOutraEntidadeBloqueandoLuz = intersecaoMaisProxima < L.Norma();
-                        }
-                        else
-                        {
-                            // Isso aqui eh uma gambiarra. Talvez mude depois, mas por ora vou manter assim
-                            // Fisicamente, o mais correto seria simplesmente setar true aqui ao encontrar
-                            // uma interseccao, mas nossa sala eh delimitada por planos infinitos, de forma que
-                            // uma luz externa jamais chegaria, pois uma luz direcional nada mais eh que
-                            // raios paralelos sem posicao especifica, vindos do infinito, de forma que,
-                            // na nossa sala, sempre existe um elemento que bloqueia a luz (o raio infinito
-                            // sempre intercepta alguem, mesmo que fora da regiao visivel). Para contornar,
-                            // aplicamos um backface-culling forcado, ignorando para o calculo da sombra as
-                            // faces dos planos que sao interceptadas e bloqueariam a luz
-                            const TPonto3D pIntersecaoMaisProxima = shadowRay.Ponto(intersecaoMaisProxima);
-                            const TVetor3D nEntidade = outraEntidade->Normal(pIntersecaoMaisProxima, shadowRay);
-                            temOutraEntidadeBloqueandoLuz = nEntidade.Dot(l) >= 0.0;
-
-                            // temOutraEntidadeBloqueandoLuz = true;
-                        }
-
-                        if (temOutraEntidadeBloqueandoLuz)
-                        {
-                            break;
-                        }
-                    }
-                }
-            }
-
-            if (!temOutraEntidadeBloqueandoLuz)
-            {
-                const TVetor3D r = (n * 2.0 * n.Dot(l)) - l;
-                const double fd = std::max(0.0, n.Dot(l));
-                const double fe = pow(std::max(v.Dot(r), 0.0), material.M());
-
-                const auto id = iFonte.Arroba(kd) * fd;
-                const auto ie = iFonte.Arroba(ke) * fe;
-
-                const TVetor3D iCorrente = id + ie;
-                i += iCorrente;
-            }
-        }
-
-        TVetor3D c = i.Arroba(TVetor3D(255.0, 255.0, 255.0));
-        c.Clamp(0.0, 255.0);
-
-        return FuncoesGerais::Vec2Cor(c);
-    }
-
-    TArquivoLOG* _arqLog = nullptr;
-    bool _podeRenderizarMT = false;
-
-    TCamera _camera;
-    TPonto3D _p0; // olho do pintor (origem)
-
-    TCor _bgColor;
-    double _iAmbR = 0.0;
-    double _iAmbG = 0.0;
-    double _iAmbB = 0.0;
-
-    std::vector<std::unique_ptr<IEntidade3D>> _entidades;
-    std::vector<std::unique_ptr<IFonteLuminosa>> _fontes;
 };
 
 // ------------------------------------------------------------------------------------------------
