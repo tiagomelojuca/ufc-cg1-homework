@@ -98,6 +98,16 @@ namespace ResTbl
 
 // ------------------------------------------------------------------------------------------------
 
+namespace ScnTbl
+{
+    static constexpr const char* SCN_NATAL = "cenas/natal.scn";
+    static constexpr const char* SCN_SPYRO = "cenas/spyro.scn";
+    static constexpr const char* SCN_TESTE = "cenas/teste.scn";
+    static constexpr const char* SCN_MENOR = "cenas/menor.scn";
+}
+
+// ------------------------------------------------------------------------------------------------
+
 class Tracer
 {
 public:
@@ -5061,6 +5071,9 @@ private:
     Globals()
     {
         cena = new TCena3D(Mocks::FabricaCena());
+        // delete cena;
+        // cena = new TCena3D();
+        // TLeitorCena3D::Carrega(ScnTbl::SCN_NATAL, *cena);
     }
 
     TCena3D* cena = nullptr;

@@ -1,0 +1,84 @@
+# CENA: TESTE
+
+bgcolor 100 100 100
+iamb 0.3 0.3 0.3
+
+DECLARA_CAMERA
+projecao perspectiva
+janela 30 30 30
+viewport 250 250
+olho 0 0 10
+visada 0 0 -1
+cima 0 1 0
+FIM_DECLARACAO
+
+DECLARA_MATERIAL
+nome material_madeira
+kd 0 0 0
+ke 0 0 0
+ka 0 0 0
+m 1
+tex recursos/Misc/tex.bmp
+k 30
+FIM_DECLARACAO
+
+DECLARA_MATERIAL
+nome material_homogeneo_1
+kd 0.686 0.933 0.933
+ke 0.686 0.933 0.933
+ka 0.686 0.933 0.933
+m 1
+FIM_DECLARACAO
+
+DECLARA_MATERIAL
+nome material_homogeneo_2
+kd 0.933 0.933 0.933
+ke 0.933 0.933 0.933
+ka 0.933 0.933 0.933
+m 1
+FIM_DECLARACAO
+
+DECLARA_PLANO
+nome PLANO_CHAO
+material material_madeira
+posicao 0 -150 0
+direcao 0 1 0
+FIM_DECLARACAO
+
+DECLARA_PLANO
+nome PLANO_PAREDE_LATERAL_DIR
+material material_homogeneo_1
+posicao 200 -150 0
+direcao -1 0 0
+FIM_DECLARACAO
+
+DECLARA_PLANO
+nome PLANO_PAREDE_FRONTAL
+material material_homogeneo_1
+posicao 200 -150 -400
+direcao 0 0 1
+FIM_DECLARACAO
+
+DECLARA_PLANO
+nome PLANO_PAREDE_LATERAL_ESQ
+material material_homogeneo_1
+posicao -200 -150 0
+direcao 1 0 0
+FIM_DECLARACAO
+
+DECLARA_PLANO
+nome PLANO_TETO
+material material_homogeneo_2
+posicao 0 150 0
+direcao 0 -1 0
+FIM_DECLARACAO
+
+DECLARA_MALHA
+nome MALHA_1
+arquivo recursos/Spyro/Spyro.obj
+FIM_DECLARACAO
+
+DECLARA_LUZ_PONTUAL
+posicao -100 140 -20
+intensidade 0.7 0.7 0.7
+FIM_DECLARACAO

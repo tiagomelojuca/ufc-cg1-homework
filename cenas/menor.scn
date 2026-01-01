@@ -1,0 +1,23 @@
+# CENA: MENOR
+
+bgcolor 100 100 100
+iamb 0.3 0.3 0.3
+
+DECLARA_CAMERA
+projecao perspectiva
+janela 15 15 30
+viewport 125 125
+olho 0 0 10
+visada 0 0 -1
+cima 0 1 0
+FIM_DECLARACAO
+
+DECLARA_MALHA
+nome MALHA_1
+arquivo recursos/Spyro/Spyro.obj
+FIM_DECLARACAO
+
+DECLARA_LUZ_PONTUAL
+posicao -100 140 -20
+intensidade 0.7 0.7 0.7
+FIM_DECLARACAO
