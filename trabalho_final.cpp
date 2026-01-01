@@ -3005,7 +3005,138 @@ private:
 
 // ------------------------------------------------------------------------------------------------
 
-class TLeitorMalha3D
+class TLeitorArquivoTextual
+{
+public:
+    TLeitorArquivoTextual() = default;
+    virtual ~TLeitorArquivoTextual() = default;
+
+    virtual bool Parse()
+    {
+        return true;
+    };
+
+    bool Ok() const
+    {
+        return _ok;
+    }
+
+protected:
+    bool Processa(std::ifstream& is)
+    {
+        if (_ok)
+        {
+            is.seekg(0, std::ios_base::beg);
+
+            std::string linha;
+            while (std::getline(is, linha))
+            {
+                NormalizaLinha(linha);
+
+                if (IgnoraLinha(linha)) // Linha em branco ou comentario
+                {
+                    // NoOp
+                }
+                else
+                {
+                    _ok = ProcessaLinha(linha);
+                    if (!_ok)
+                    {
+                        break;
+                    }
+                }
+            }
+        }
+
+        return _ok;
+    }
+
+    virtual bool ProcessaLinha(const std::string& linha)
+    {
+        return true;
+    }
+
+    void NormalizaLinha(std::string& linha) const
+    {
+        size_t inicio = linha.find_first_not_of(" \t");
+        if (inicio != std::string::npos)
+        {
+            linha = linha.substr(inicio);
+        }
+    }
+
+    std::string LeString(const std::string& linha) const
+    {
+        std::string token;
+        std::string str;
+
+        std::istringstream iss(linha);
+        iss >> token >> str;
+
+        return str;
+    }
+
+    int LeInteiro(const std::string& linha) const
+    {
+        std::string token;
+        int n;
+
+        std::istringstream iss(linha);
+        iss >> token >> n;
+
+        return n;
+    }
+
+    double LeEscalar(const std::string& linha) const
+    {
+        std::string token;
+        double n;
+
+        std::istringstream iss(linha);
+        iss >> token >> n;
+
+        return n;
+    }
+
+    TVetor3D LeVetor2D(const std::string& linha) const
+    {
+        std::string token;
+        double x, y;
+
+        std::istringstream iss(linha);
+        iss >> token >> x >> y;
+
+        return { x, y, 0.0 };
+    }
+
+    TVetor3D LeVetor3D(const std::string& linha) const
+    {
+        std::string token;
+        double x, y, z;
+
+        std::istringstream iss(linha);
+        iss >> token >> x >> y >> z;
+
+        return { x, y, z };
+    }
+
+    bool IgnoraLinha(const std::string& linha)
+    {
+        return linha.empty() || linha[0] == '#';
+    }
+
+    bool IniciaComPalavraChave(const std::string& linha, const std::string& token)
+    {
+        return linha.rfind(token + " ", 0) == 0;
+    }
+
+    bool _parseado = false;
+    bool _ok = true;
+};
+
+// ------------------------------------------------------------------------------------------------
+
+class TLeitorMalha3D : public TLeitorArquivoTextual
 {
 private:
     struct TVertice
@@ -3036,7 +3167,7 @@ public:
         malha.DeveRotularTriangulosInseridosAutomaticamente(bkpDeveRotular);
     }
 
-    bool Parse()
+    bool Parse() override
     {
         if (_parseado)
         {
@@ -3054,7 +3185,8 @@ public:
 
         if (_isMtl.is_open())
         {
-            ProcessaMTL();
+            _arquivoCorrente = EArquivoCorrente::MTL;
+            Processa();
         }
         else
         {
@@ -3063,17 +3195,12 @@ public:
 
         if (_ok)
         {
-            _isObj.seekg(0, std::ios_base::beg);
-            ProcessaOBJ();
+            _arquivoCorrente = EArquivoCorrente::OBJ;
+            Processa();
         }
 
         _parseado = true;
         
-        return _ok;
-    }
-
-    bool Ok() const
-    {
         return _ok;
     }
 
@@ -3146,6 +3273,29 @@ public:
     }
 
 private:
+    enum class EArquivoCorrente { MTL, OBJ };
+
+    bool Processa()
+    {
+        return _arquivoCorrente == EArquivoCorrente::MTL
+            ? TLeitorArquivoTextual::Processa(_isMtl)
+            : TLeitorArquivoTextual::Processa(_isObj);
+    }
+
+    bool ProcessaLinha(const std::string& linha) override
+    {
+        if (_arquivoCorrente == EArquivoCorrente::MTL)
+        {
+            ProcessaLinhaMTL(linha);
+        }
+        else
+        {
+            ProcessaLinhaOBJ(linha);
+        }
+
+        return true;
+    }
+
     bool PreProcessaOBJ()
     {
         bool achouMtlAssociado = false;
@@ -3170,42 +3320,9 @@ private:
         return achouMtlAssociado;
     }
 
-    void ProcessaMTL()
-    {
-        std::string linha;
-        while (std::getline(_isMtl, linha))
-        {
-            NormalizaLinha(linha);
-            ProcessaLinhaMTL(linha);
-        }
-    }
-
-    void ProcessaOBJ()
-    {
-        std::string linha;
-        while (std::getline(_isObj, linha))
-        {
-            NormalizaLinha(linha);
-            ProcessaLinhaOBJ(linha);
-        }
-    }
-
-    void NormalizaLinha(std::string& linha) const
-    {
-        size_t inicio = linha.find_first_not_of(" \t");
-        if (inicio != std::string::npos)
-        {
-            linha = linha.substr(inicio);
-        }
-    }
-
     void ProcessaLinhaMTL(const std::string& linha)
     {
-        if (IgnoraLinha(linha)) // Linha em branco ou comentario
-        {
-            // NoOp
-        }
-        else if (IniciaComPalavraChave(linha, "newmtl")) // Nome Material
+        if (IniciaComPalavraChave(linha, "newmtl")) // Nome Material
         {
             _materialCorrente = LeString(linha);
         }
@@ -3270,11 +3387,7 @@ private:
 
     void ProcessaLinhaOBJ(const std::string& linha)
     {
-        if (IgnoraLinha(linha)) // Linha em branco ou comentario
-        {
-            // NoOp
-        }
-        else if (IniciaComPalavraChave(linha, "mtllib")) // Nome Arquivo Materiais
+        if (IniciaComPalavraChave(linha, "mtllib")) // Nome Arquivo Materiais
         {
             // NoOp, ja foi tratado antes para carregar o MTL
         }
@@ -3348,71 +3461,6 @@ private:
         _faces.push_back(face);
     }
 
-    std::string LeString(const std::string& linha) const
-    {
-        std::string token;
-        std::string str;
-
-        std::istringstream iss(linha);
-        iss >> token >> str;
-
-        return str;
-    }
-
-    int LeInteiro(const std::string& linha) const
-    {
-        std::string token;
-        int n;
-
-        std::istringstream iss(linha);
-        iss >> token >> n;
-
-        return n;
-    }
-
-    double LeEscalar(const std::string& linha) const
-    {
-        std::string token;
-        double n;
-
-        std::istringstream iss(linha);
-        iss >> token >> n;
-
-        return n;
-    }
-
-    TVetor3D LeVetor2D(const std::string& linha) const
-    {
-        std::string token;
-        double x, y;
-
-        std::istringstream iss(linha);
-        iss >> token >> x >> y;
-
-        return { x, y, 0.0 };
-    }
-
-    TVetor3D LeVetor3D(const std::string& linha) const
-    {
-        std::string token;
-        double x, y, z;
-
-        std::istringstream iss(linha);
-        iss >> token >> x >> y >> z;
-
-        return { x, y, z };
-    }
-
-    bool IgnoraLinha(const std::string& linha)
-    {
-        return linha.empty() || linha[0] == '#';
-    }
-
-    bool IniciaComPalavraChave(const std::string& linha, const std::string& token)
-    {
-        return linha.rfind(token + " ", 0) == 0;
-    }
-
     TMaterial& MaterialCorrente()
     {
         return _materiais[_materialCorrente];
@@ -3440,8 +3488,7 @@ private:
     std::string _caminhoMtl;
     std::ifstream _isObj;
     std::ifstream _isMtl;
-    bool _parseado = false;
-    bool _ok = true;
+    EArquivoCorrente _arquivoCorrente = EArquivoCorrente::OBJ;
 
     std::unordered_map<std::string, TMaterial> _materiais;
     std::string _materialCorrente;
