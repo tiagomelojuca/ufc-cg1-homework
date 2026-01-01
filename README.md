@@ -21,14 +21,14 @@ RayTracer didatico desenvolvido durante a disciplina de Computacao Grafica I da 
 [ ] Transformacao de Cisalhamento  
 [ ] Transformacao de Reflexao  
 [/] Luz Pontual  
-[ ] Luz Spot  
-[ ] Luz Direcional  
+[/] Luz Spot  
+[/] Luz Direcional  
 [/] Luz Ambiente  
 [/] Sombra  
 [/] Objeto Esfera  
 [/] Objeto Cilindro  
 [/] Objeto Cone  
-[x] Objeto Malha  
+[/] Objeto Malha  
 [/] Minimo de 4 materiais  
 [/] Minimo de 1 textura  
   
