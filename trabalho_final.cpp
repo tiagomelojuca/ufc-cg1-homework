@@ -322,6 +322,10 @@ public:
     {
         return _colunas;
     }
+    bool Inconsistente() const
+    {
+        return _linhas == 0 || _colunas == 0;
+    }
 
     TMatriz Produto(const TMatriz& outra) const
     {
@@ -343,11 +347,6 @@ public:
         }
 
         return P;
-    }
-
-    bool Inconsistente() const
-    {
-        return _linhas == 0 || _colunas == 0;
     }
 
     T**& MatrizCrua()
