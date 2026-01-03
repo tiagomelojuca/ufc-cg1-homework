@@ -350,6 +350,11 @@ public:
         return _linhas == 0 || _colunas == 0;
     }
 
+    T**& MatrizCrua()
+    {
+        return _matriz;
+    }
+
 protected:
     void AlocaMem(S linhas, S colunas)
     {
@@ -369,6 +374,99 @@ protected:
 
     T** _matriz;
 };
+
+// ------------------------------------------------------------------------------------------------
+
+namespace FuncoesMatrizes
+{
+    TMatriz<double, uint16_t> Identidade(uint16_t ordem)
+    {
+        TMatriz<double, uint16_t> I(ordem, ordem);
+
+        for (uint16_t i = 1; i <= ordem; i++)
+        {
+            I[i][i] = 1.0;
+        }
+
+        return I;
+    }
+
+    TMatriz<double, uint16_t> Inversa(const TMatriz<double, uint16_t>& m)
+    {
+        // Eliminacao de Gauss-Jordan com Pivoteamento Parcial
+        if (m.NumeroLinhas() != m.NumeroColunas() || m.Inconsistente())
+        {
+            return TMatriz<double, uint16_t>(0, 0);
+        }
+
+        uint16_t n = m.NumeroLinhas();
+
+        TMatriz aux = m;
+        TMatriz inv = Identidade(n);
+
+        for (uint16_t i = 1; i <= n; i++)
+        {
+            uint16_t linhaPivo = i;
+            for (uint16_t k = i + 1; k <= n; k++)
+            {
+                if (std::abs(aux[k][i]) > std::abs(aux[linhaPivo][i]))
+                {
+                    linhaPivo = k;
+                }
+            }
+
+            std::swap(aux.MatrizCrua()[i - 1], aux.MatrizCrua()[linhaPivo - 1]);
+            std::swap(inv.MatrizCrua()[i - 1], inv.MatrizCrua()[linhaPivo - 1]);
+
+            if (std::abs(aux[i][i]) < 1e-15)
+            {
+                return TMatriz<double, uint16_t>(0, 0);
+            }
+
+            double pivoValor = aux[i][i];
+            for (uint16_t j = 1; j <= n; j++)
+            {
+                aux[i][j] /= pivoValor;
+                inv[i][j] /= pivoValor;
+            }
+
+            for (uint16_t k = 1; k <= n; k++)
+            {
+                if (k != i)
+                {
+                    double fator = aux[k][i];
+                    for (uint16_t j = 1; j <= n; j++)
+                    {
+                        aux[k][j] -= fator * aux[i][j];
+                        inv[k][j] -= fator * inv[i][j];
+                    }
+                }
+            }
+        }
+
+        return inv;
+    }
+
+    std::string Stringify(const TMatriz<double, uint16_t>& m)
+    {
+        std::string _m;
+
+        for (uint16_t i = 1; i <= m.NumeroLinhas(); i++)
+        {
+            for (uint16_t j = 1; j <= m.NumeroColunas(); j++)
+            {
+                _m += std::to_string(m[i][j]);
+                if (j != m.NumeroColunas())
+                {
+                    _m += " ";
+                }
+            }
+            _m += "\n";
+        }
+
+        return _m;
+    }
+}
 
 // ------------------------------------------------------------------------------------------------
 
