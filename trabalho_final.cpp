@@ -349,6 +349,22 @@ public:
         return P;
     }
 
+    TMatriz Transposta() const
+    {
+        const TMatriz& M = *this;
+        TMatriz MT(_colunas, _linhas);
+
+        for (S l = 1; l <= _linhas; l++)
+        {
+            for (S c = 1; c <= _colunas; c++)
+            {
+                MT[c][l] = M[l][c];
+            }
+        }
+
+        return MT;
+    }
+
     T**& MatrizCrua()
     {
         return _matriz;
