@@ -3,6 +3,7 @@
 bgcolor 100 100 100
 iamb 0.3 0.3 0.3
 
+# camera padrao
 DECLARA_CAMERA
 projecao perspectiva
 janela 60 60 30
@@ -11,6 +12,16 @@ olho 0 0 0
 visada 0 0 -1
 cima 0 1 0
 FIM_DECLARACAO
+
+# camera isometrica (importante remover a parede direita e o teto)
+# DECLARA_CAMERA
+# projecao paralela
+# janela 500 500 0
+# viewport 500 500
+# olho 200 250 0
+# visada -200 -150 -400
+# cima 0 1 0
+# FIM_DECLARACAO
 
 DECLARA_MATERIAL
 nome material_madeira
