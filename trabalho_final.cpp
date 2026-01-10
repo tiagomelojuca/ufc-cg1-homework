@@ -118,6 +118,8 @@ namespace ScnTbl
     static constexpr const char* SCN_SPYRO = "cenas/spyro.scn";
     static constexpr const char* SCN_TESTE = "cenas/teste.scn";
     static constexpr const char* SCN_MENOR = "cenas/menor.scn";
+
+    static constexpr const char* SCN_EMUSO = SCN_LIVRE;
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -5177,6 +5179,13 @@ public:
         return *_instancia;
     }
 
+    void CarregaCena(const std::string& caminho)
+    {
+        delete cena;
+        cena = new TCena3D();
+        TLeitorCena3D::Carrega(caminho, *cena);
+    }
+
     TCena3D& Cena()
     {
         return *cena;
@@ -5197,10 +5206,8 @@ public:
 private:
     Globals()
     {
-        cena = new TCena3D(Mocks::FabricaCena());
-        delete cena;
-        cena = new TCena3D();
-        TLeitorCena3D::Carrega(ScnTbl::SCN_LIVRE, *cena);
+        // cena = new TCena3D(Mocks::FabricaCena());
+        CarregaCena(ScnTbl::SCN_EMUSO);
     }
 
     TCena3D* cena = nullptr;
@@ -5257,9 +5264,10 @@ private:
         RegisterClass(&_wndCls);
 
         _hWnd = CriaJanelaPrincipal();
-        _hWndBtnRenderScene = CriaBotao(_hWnd, _IDC_BTN_RENDER_SCENE, L"Renderiza Cena", 16, 16, 128, 32);
-        _hWndBtnZoomIn      = CriaBotao(_hWnd, _IDC_BTN_ZOOM_IN,      L"+", 16, 64, 56, 32);
-        _hWndBtnZoomOut     = CriaBotao(_hWnd, _IDC_BTN_ZOOM_OUT,     L"-", 88, 64, 56, 32);
+        _hWndBtnReloadScene = CriaBotao(_hWnd, _IDC_BTN_RELOAD_SCENE, L"Recarrega Cena", 16, 16, 128, 32);
+        _hWndBtnRenderScene = CriaBotao(_hWnd, _IDC_BTN_RENDER_SCENE, L"Renderiza Cena", 16, 64, 128, 32);
+        _hWndBtnZoomIn      = CriaBotao(_hWnd, _IDC_BTN_ZOOM_IN,      L"+", 16, 112, 56, 32);
+        _hWndBtnZoomOut     = CriaBotao(_hWnd, _IDC_BTN_ZOOM_OUT,     L"-", 88, 112, 56, 32);
 
         return _hWnd != nullptr && _hWndBtnRenderScene != nullptr;
     }
@@ -5318,6 +5326,10 @@ private:
         ShowWindow(_hWnd, _nCmdShow);
     }
 
+    static void EvBtnReloadScene(HWND hWndJanelaPrincipal)
+    {
+        Globals::Instancia().CarregaCena(ScnTbl::SCN_EMUSO);
+    }
     static void EvBtnRenderScene(HWND hWndJanelaPrincipal)
     {
         rendering = true;
@@ -5467,7 +5479,11 @@ private:
         {
             const auto idBtn = LOWORD(wParam);
 
-            if (idBtn == _IDC_BTN_RENDER_SCENE)
+            if (idBtn == _IDC_BTN_RELOAD_SCENE)
+            {
+                EvBtnReloadScene(hWnd);
+            }
+            else if (idBtn == _IDC_BTN_RENDER_SCENE)
             {
                 EvBtnRenderScene(hWnd);
             }
@@ -5512,9 +5528,10 @@ private:
     HWND _hWnd;
     WNDCLASS _wndCls;
 
-    HWND _hWndBtnRenderScene; static constexpr int _IDC_BTN_RENDER_SCENE = 1;
-    HWND _hWndBtnZoomIn;      static constexpr int _IDC_BTN_ZOOM_IN      = 2;
-    HWND _hWndBtnZoomOut;     static constexpr int _IDC_BTN_ZOOM_OUT     = 3;
+    HWND _hWndBtnReloadScene; static constexpr int _IDC_BTN_RELOAD_SCENE = 1;
+    HWND _hWndBtnRenderScene; static constexpr int _IDC_BTN_RENDER_SCENE = 2;
+    HWND _hWndBtnZoomIn;      static constexpr int _IDC_BTN_ZOOM_IN      = 3;
+    HWND _hWndBtnZoomOut;     static constexpr int _IDC_BTN_ZOOM_OUT     = 4;
 
     static bool rendering;
     static std::wstring pickedObject;
