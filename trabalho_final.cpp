@@ -3593,11 +3593,13 @@ private:
                             // sempre intercepta alguem, mesmo que fora da regiao visivel). Para contornar,
                             // aplicamos um backface-culling forcado, ignorando para o calculo da sombra as
                             // faces dos planos que sao interceptadas e bloqueariam a luz
-                            const TPonto3D pIntersecaoMaisProxima = shadowRay.Ponto(intersecaoMaisProxima);
-                            const TVetor3D nEntidade = outraEntidade->Normal(pIntersecaoMaisProxima, shadowRay);
-                            temOutraEntidadeBloqueandoLuz = nEntidade.Dot(l) >= 0.0;
+                            // const TPonto3D pIntersecaoMaisProxima = shadowRay.Ponto(intersecaoMaisProxima);
+                            // const TVetor3D nEntidade = outraEntidade->Normal(pIntersecaoMaisProxima, shadowRay);
+                            // temOutraEntidadeBloqueandoLuz = nEntidade.Dot(l) >= 0.0;
+                            // UPDATE: eh, achei melhor deixar fisicamente realista e mudar meu cenario,
+                            //         mas vou deixar minha gambiarra documentada aqui caso precise de novo
 
-                            // temOutraEntidadeBloqueandoLuz = true;
+                            temOutraEntidadeBloqueandoLuz = true;
                         }
 
                         if (temOutraEntidadeBloqueandoLuz)
