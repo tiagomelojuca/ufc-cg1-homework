@@ -2658,14 +2658,37 @@ public:
 
     TPonto3D Centro() const
     {
+        TPonto3D bbMin, bbMax;
+        BoundingBox(bbMin, bbMax);
+
+        return TPonto3D {
+            (bbMin.X() + bbMax.X()) * 0.5,
+            (bbMin.Y() + bbMax.Y()) * 0.5,
+            (bbMin.Z() + bbMax.Z()) * 0.5
+        };
+    }
+
+    bool DeveRotularTriangulosInseridosAutomaticamente() const
+    {
+        return _deveRotularTriangulosInseridosAutomaticamente;
+    }
+    void DeveRotularTriangulosInseridosAutomaticamente(bool deveRotularAutomaticamente)
+    {
+        _deveRotularTriangulosInseridosAutomaticamente = deveRotularAutomaticamente;
+    }
+
+private:
+    void BoundingBox(TPonto3D& bbMin, TPonto3D& bbMax) const
+    {
         if (_entidades.empty())
         {
-            return TPonto3D { 0.0, 0.0, 0.0 };
+            bbMin = bbMax = { 0.0, 0.0, 0.0 };
+            return;
         }
 
         auto& trianguloRef = static_cast<TSuperficieTriangular&>(*_entidades.front().get());
-        TPonto3D bbMin = trianguloRef.P1();
-        TPonto3D bbMax = trianguloRef.P1();
+        bbMin = trianguloRef.P1();
+        bbMax = trianguloRef.P1();
 
         auto ComputaVertice = [&bbMin, &bbMax](const TPonto3D& v)
         {
@@ -2687,24 +2710,8 @@ public:
             ComputaVertice(t.P2());
             ComputaVertice(t.P3());
         });
-
-        return TPonto3D {
-            (bbMin.X() + bbMax.X()) * 0.5,
-            (bbMin.Y() + bbMax.Y()) * 0.5,
-            (bbMin.Z() + bbMax.Z()) * 0.5
-        };
     }
 
-    bool DeveRotularTriangulosInseridosAutomaticamente() const
-    {
-        return _deveRotularTriangulosInseridosAutomaticamente;
-    }
-    void DeveRotularTriangulosInseridosAutomaticamente(bool deveRotularAutomaticamente)
-    {
-        _deveRotularTriangulosInseridosAutomaticamente = deveRotularAutomaticamente;
-    }
-
-private:
     bool _deveRotularTriangulosInseridosAutomaticamente = false;
 };
 
