@@ -58,6 +58,11 @@
 // 7.     Bonus de criatividade e beleza (ate 1.0)
 // ------------------------------------------------------------------------------------------------
 
+// A macro a seguir deve ser definida ANTES de incluir cmath
+// https://stackoverflow.com/questions/26065359/m-pi-flagged-as-undeclared-identifier
+// https://learn.microsoft.com/en-us/cpp/c-runtime-library/math-constants?view=msvc-170
+#define _USE_MATH_DEFINES
+
 #include <algorithm>
 #include <cstdint>
 #include <cmath>
@@ -74,15 +79,23 @@
 #include <thread>
 #include <functional>
 
-#ifndef UNICODE
-#define UNICODE
-#endif
-#include <windows.h>
-#include <windowsx.h>
-
 #define STB_IMAGE_IMPLEMENTATION
 #include "dependencias/stb_image.h"
 #include "dependencias/BitmapPlusPlus.hpp"
+
+// As macros a seguir devem ser tratadas ANTES de incluir windows.h
+#ifndef UNICODE
+#define UNICODE
+#endif
+
+// https://stackoverflow.com/questions/
+// 6884093/warning-c4003-not-enough-actual-parameters-for-macro-max-visual-studio-2010
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+
+#include <windows.h>
+#include <windowsx.h>
 
 // ------------------------------------------------------------------------------------------------
 #define BUFLEN 256

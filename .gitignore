@@ -1,4 +1,5 @@
 *.exe
+*.obj
 *.log
 *.ppm
 *.bmp
