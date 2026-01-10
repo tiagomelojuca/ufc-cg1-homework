@@ -2668,6 +2668,16 @@ public:
         };
     }
 
+    void Dimensoes(double& largura, double& altura, double& profundidade) const
+    {
+        TPonto3D bbMin, bbMax;
+        BoundingBox(bbMin, bbMax);
+
+        largura      = bbMax.X() - bbMin.X();
+        altura       = bbMax.Y() - bbMin.Y();
+        profundidade = bbMax.Z() - bbMin.Z(); // aka comprimento
+    }
+
     bool DeveRotularTriangulosInseridosAutomaticamente() const
     {
         return _deveRotularTriangulosInseridosAutomaticamente;
