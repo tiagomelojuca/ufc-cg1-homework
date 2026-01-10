@@ -1,11 +1,32 @@
-# CENA: LIVRE
+# CENA: NATAL
 
 bgcolor 100 100 100
 iamb 0.3 0.3 0.3
 
+# camera padrao
+# DECLARA_CAMERA
+# projecao perspectiva
+# janela 60 60 30
+# viewport 500 500
+# olho 0 0 0
+# visada 0 0 -1
+# cima 0 1 0
+# FIM_DECLARACAO
+
+# camera isometrica
+# DECLARA_CAMERA
+# projecao paralela
+# janela 500 500 0
+# viewport 500 500
+# olho 200 250 0
+# visada -200 -150 -400
+# cima 0 1 0
+# FIM_DECLARACAO
+
+# camera ortografica com artefatos
 DECLARA_CAMERA
-projecao perspectiva
-janela 60 60 30
+projecao paralela
+janela 400 400 0
 viewport 500 500
 olho 0 0 0
 visada 0 0 -1
@@ -13,21 +34,148 @@ cima 0 1 0
 FIM_DECLARACAO
 
 DECLARA_MATERIAL
-nome material_cubo
+nome material_madeira
+kd 0 0 0
+ke 0 0 0
+ka 0 0 0
+m 1
+tex recursos/Misc/tex.bmp
+k 30
+FIM_DECLARACAO
+
+DECLARA_MATERIAL
+nome material_homogeneo_1
+kd 0.686 0.933 0.933
+ke 0.686 0.933 0.933
+ka 0.686 0.933 0.933
+m 1
+FIM_DECLARACAO
+
+DECLARA_MATERIAL
+nome material_homogeneo_2
+kd 0.933 0.933 0.933
+ke 0.933 0.933 0.933
+ka 0.933 0.933 0.933
+m 1
+FIM_DECLARACAO
+
+DECLARA_MATERIAL
+nome material_homogeneo_3
+kd 0.824 0.706 0.549
+ke 0.824 0.706 0.549
+ka 0.824 0.706 0.549
+m 10
+FIM_DECLARACAO
+
+DECLARA_MATERIAL
+nome material_homogeneo_4
+kd 0 1 0.498
+ke 0 1 0.498
+ka 0 1 0.498
+m 10
+FIM_DECLARACAO
+
+DECLARA_MATERIAL
+nome material_homogeneo_5
 kd 1 0.078 0.576
 ke 1 0.078 0.576
 ka 1 0.078 0.576
 m 10
 FIM_DECLARACAO
 
+DECLARA_MATERIAL
+nome material_homogeneo_6
+kd 0.854 0.647 0.125
+ke 0.854 0.647 0.125
+ka 0.854 0.647 0.125
+m 10
+FIM_DECLARACAO
+
+DECLARA_PLANO
+nome PLANO_CHAO
+material material_madeira
+posicao 0 -150 0
+direcao 0 1 0
+FIM_DECLARACAO
+
+DECLARA_PLANO
+nome PLANO_PAREDE_LATERAL_DIR
+material material_homogeneo_1
+posicao 150 -150 0
+direcao -1 0 0
+FIM_DECLARACAO
+
+DECLARA_PLANO
+nome PLANO_PAREDE_FRONTAL
+material material_homogeneo_1
+posicao 200 -150 -400
+direcao 0 0 1
+FIM_DECLARACAO
+
+DECLARA_PLANO
+nome PLANO_PAREDE_LATERAL_ESQ
+material material_homogeneo_1
+posicao -150 -150 0
+direcao 1 0 0
+FIM_DECLARACAO
+
+DECLARA_PLANO
+nome PLANO_TETO
+material material_homogeneo_2
+posicao 0 150 0
+direcao 0 -1 0
+FIM_DECLARACAO
+
+DECLARA_CILINDRO
+nome CILINDRO_1
+material material_homogeneo_3
+posicao 0 -150 -200
+direcao 0 1 0
+raio 5
+altura 90
+FIM_DECLARACAO
+
+DECLARA_CONE
+nome CONE_1
+material material_homogeneo_4
+posicao 0 -60 -200
+direcao 0 1 0
+raio 90
+altura 150
+FIM_DECLARACAO
+
 DECLARA_CUBO
 nome CUBO_1
-material material_cubo
+material material_homogeneo_5
 posicao 0 -150 -165
 aresta 40
 FIM_DECLARACAO
 
-DECLARA_LUZ_PONTUAL
-posicao -100 140 -20
+DECLARA_ESFERA
+nome ESFERA_1
+material material_homogeneo_6
+posicao 0 95 -200
+raio 5
+FIM_DECLARACAO
+
+# DECLARA_MALHA
+# nome MALHA_1
+# arquivo recursos/Spyro/Spyro.obj
+# FIM_DECLARACAO
+
+# DECLARA_LUZ_PONTUAL
+# posicao -100 140 -20
+# intensidade 0.7 0.7 0.7
+# FIM_DECLARACAO
+
+# DECLARA_LUZ_SPOT
+# posicao 0 0 0
+# direcao 0 0 -1
+# intensidade 0.7 0.7 0.7
+# angulo 30
+# FIM_DECLARACAO
+
+DECLARA_LUZ_DIRECIONAL
+direcao -1 1 1
 intensidade 0.7 0.7 0.7
 FIM_DECLARACAO
