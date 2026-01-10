@@ -4,14 +4,14 @@ bgcolor 100 100 100
 iamb 0.3 0.3 0.3
 
 # camera padrao
-# DECLARA_CAMERA
-# projecao perspectiva
-# janela 60 60 30
-# viewport 500 500
-# olho 0 0 0
-# visada 0 0 -1
-# cima 0 1 0
-# FIM_DECLARACAO
+DECLARA_CAMERA
+projecao perspectiva
+janela 60 60 30
+viewport 500 500
+olho 0 0 0
+visada 0 0 -1
+cima 0 1 0
+FIM_DECLARACAO
 
 # camera isometrica
 # DECLARA_CAMERA
@@ -22,16 +22,6 @@ iamb 0.3 0.3 0.3
 # visada -200 -150 -400
 # cima 0 1 0
 # FIM_DECLARACAO
-
-# camera ortografica com artefatos
-DECLARA_CAMERA
-projecao paralela
-janela 400 400 0
-viewport 500 500
-olho 0 0 0
-visada 0 0 -1
-cima 0 1 0
-FIM_DECLARACAO
 
 DECLARA_MATERIAL
 nome material_madeira
@@ -163,10 +153,10 @@ FIM_DECLARACAO
 # arquivo recursos/Spyro/Spyro.obj
 # FIM_DECLARACAO
 
-# DECLARA_LUZ_PONTUAL
-# posicao -100 140 -20
-# intensidade 0.7 0.7 0.7
-# FIM_DECLARACAO
+DECLARA_LUZ_PONTUAL
+posicao -100 140 -20
+intensidade 0.7 0.7 0.7
+FIM_DECLARACAO
 
 # DECLARA_LUZ_SPOT
 # posicao 0 0 0
@@ -175,7 +165,7 @@ FIM_DECLARACAO
 # angulo 30
 # FIM_DECLARACAO
 
-DECLARA_LUZ_DIRECIONAL
-direcao -1 1 1
-intensidade 0.7 0.7 0.7
-FIM_DECLARACAO
+# DECLARA_LUZ_DIRECIONAL
+# direcao -1 1 1
+# intensidade 0.7 0.7 0.7
+# FIM_DECLARACAO
