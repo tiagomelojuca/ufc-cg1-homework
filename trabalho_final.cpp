@@ -1924,7 +1924,68 @@ namespace TransformacoesLineares
 
     void Rotacao(IEntidade3D& entidade, const TVetor3D& u, double teta)
     {
-        // ToDo
+        // Racional: A rotacao em torno de eixo arbitrario aqui eh tratada por mudanca de
+        //           coordenadas, utilizando a consagrada sequencia de transformacoes a seguir
+        //           Rfinal = Rx^(-1)(TetaX) * Ry^(-1)(-TetaY) * Rz(Teta) * Ry(-TetaY) * Rx(TetaX)
+        //           1) Rx e Ry alinham o eixo 'u' com o eixo Z do mundo
+        //           2) Rz rotaciona o objeto em torno do eixo Z (que agora coincide com 'u')
+        //           3) invRy e invRx retornam o sistema de coordenadas a orientacao original
+        const TVetor3D _u = u.Normalizado();
+
+        double cosTetaX;
+        double sinTetaX;
+        double d;
+        if (_u.Y() == 0.0 && _u.Z() == 0.0) // eh o proprio eixo X
+        {
+            // O valor de d = 0 faz com que cosTetaY = 0 e sinTetaY = 1, ou seja
+            // Ry = [  0 0 1 ]
+            //      [  0 1 0 ]
+            //      [ -1 0 0 ]
+            // Isso eh uma rotacao de 90o no eixo Y, que eh exatamente o que coloca
+            // o eixo X sobre o eixo Z. Ou seja, a matematica clica perfeitamente,
+            // mesmo nos casos de borda
+            d = 0.0;
+            cosTetaX = 1.0;
+            sinTetaX = 0.0;
+        }
+        else
+        {
+            d = sqrt(_u.Y() * _u.Y() + _u.Z() * _u.Z());
+            cosTetaX = _u.Z() / d;
+            sinTetaX = _u.Y() / d;
+        }
+
+        // A aplicacao de Rx sobre o vetor direcao u faz com que ele caia sobre o
+        // plano XZ, nos dando o vetor intermediario u' = (ux, 0, d), que conhecemos
+        // de antemao e sabemos ser unitario, de forma que a hipotenusa entre
+        // ux e d sera 1, entao calculamos tetaY para que esse novo vetor u' gire
+        // em torno de Y ate que se alinhe perfeitamente com o eixo Z
+        double cosTetaY = d;
+        double sinTetaY = _u.X();
+
+        // Com isso, somos capazes de calcular todas as matrizes de rotacao intermediarias
+        const TMatriz<double> Rx(4u, 4u, { { 1.0,      0.0,       0.0, 0.0 },
+                                           { 0.0, cosTetaX, -sinTetaX, 0.0 },
+                                           { 0.0, sinTetaX,  cosTetaX, 0.0 },
+                                           { 0.0,      0.0,       0.0, 1.0 } });
+        const TMatriz<double> Ry(4u, 4u, { {  cosTetaY, 0.0, sinTetaY, 0.0 },
+                                           {       0.0, 1.0,      0.0, 0.0 },
+                                           { -sinTetaY, 0.0, cosTetaY, 0.0 },
+                                           {       0.0, 0.0,      0.0, 1.0 } });
+        const TMatriz<double> Rz(4u, 4u, { { cos(teta), -sin(teta), 0.0, 0.0 },
+                                           { sin(teta),  cos(teta), 0.0, 0.0 },
+                                           {       0.0,        0.0, 1.0, 0.0 },
+                                           {       0.0,        0.0, 0.0, 1.0 } });
+
+        // As matrizes de rotacao sao ortogonais, isto eh, tem a propriedade que
+        // a inversa eh igual a transposta
+        const TMatriz<double> invRx = Rx.Transposta();
+        const TMatriz<double> invRy = Ry.Transposta();
+
+        // R = invRx * invRy * Rz * Ry * Rx;
+        const TMatriz<double> R = invRx.Produto(invRy.Produto(Rz.Produto(Ry.Produto(Rx))));
+
+        entidade.Transforma(R);
     }
 
     void Escala(IEntidade3D& entidade, const TPonto3D& s)
