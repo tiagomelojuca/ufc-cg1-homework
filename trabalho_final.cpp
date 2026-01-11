@@ -3478,6 +3478,19 @@ public:
         return hit.entidade->Rotulo();
     }
 
+    IEntidade3D* Entidade(const std::string& label)
+    {
+        for (std::unique_ptr<IEntidade3D>& entidade : _entidades)
+        {
+            IEntidade3D* entidadeCorrente = entidade.get();
+            if (entidadeCorrente->Rotulo() == label) {
+                return entidadeCorrente;
+            }
+        }
+
+        return nullptr;
+    }
+
     // Nao sei se "colisao" eh uma boa traducao/adaptacao para hit, mas enfim
     // pensei em deixar em ingles, NearestHit ou ClosestHit, ja misturei mesmo
     THit ColisaoMaisProxima(const TRaio3D& raio) const
