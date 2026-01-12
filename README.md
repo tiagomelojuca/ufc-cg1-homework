@@ -7,19 +7,19 @@ RayTracer didatico desenvolvido durante a disciplina de Computacao Grafica I da 
 [x] Picking  
 [/] Coordenadas de mundo positivas e independentes  
 [x] Camera personalizada (eye, at, lookUp, d, fov)  
-[ ] Projecao ortografica  
-[ ] Projecao obliquia  
+[/] Projecao ortografica  
+[/] Projecao obliquia  
 [/] Projecao perspectiva  
-[ ] Projecao perspectiva c/ 1 ponto de fuga  
-[ ] Projecao perspectiva c/ 2 ponto de fuga  
-[ ] Projecao perspectiva c/ 3 ponto de fuga  
+[/] Projecao perspectiva c/ 1 ponto de fuga  
+[/] Projecao perspectiva c/ 2 ponto de fuga  
+[/] Projecao perspectiva c/ 3 ponto de fuga  
 [x] Zoom In/Out  
-[ ] Transformacao de Translacao  
-[ ] Transformacao de Rotacao em eixo canonico  
-[ ] Transformacao de Rotacao em eixo arbitrario (por mudanca de coords)  
-[ ] Transformacao de Escala  
-[ ] Transformacao de Cisalhamento  
-[ ] Transformacao de Reflexao  
+[/] Transformacao de Translacao  
+[/] Transformacao de Rotacao em eixo canonico  
+[/] Transformacao de Rotacao em eixo arbitrario (por mudanca de coords)  
+[/] Transformacao de Escala  
+[/] Transformacao de Cisalhamento  
+[/] Transformacao de Reflexao  
 [/] Luz Pontual  
 [/] Luz Spot  
 [/] Luz Direcional  
