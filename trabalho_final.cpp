@@ -477,6 +477,25 @@ namespace FuncoesMatrizes
         return inv;
     }
 
+    // Calcula o determinante 3x3 da matriz dada
+    // Se a matriz nao tiver dimensoes suficientes, retorna falha
+    // Se a matriz tiver alguma dimensao superior a 3, ignora, apenas
+    // a particao inicial (submatriz 3x3) da matriz dada eh considerada
+    // para o calculo. Isso eh util porque determinantes genericos
+    // de ordem N sao computacionalmente caros, enquanto um determinante 3x3,
+    // que eh tudo que precisamos, eh bem mais barato
+    double Det3x3(const TMatriz<double>& m)
+    {
+        if (m.NumeroLinhas() < 3 || m.NumeroColunas() < 3)
+        {
+            return std::numeric_limits<double>::max();
+        }
+
+        return m[1][1] * (m[2][2] * m[3][3] - m[2][3] * m[3][2]) - 
+               m[1][2] * (m[2][1] * m[3][3] - m[2][3] * m[3][1]) + 
+               m[1][3] * (m[2][1] * m[3][2] - m[2][2] * m[3][1]);
+    }
+
     std::string Stringify(const TMatriz<double, uint16_t>& m)
     {
         std::string _m;
@@ -2060,7 +2079,7 @@ namespace TransformacoesLineares
         entidade.Transforma(R);
     }
 
-    // Helpers de conveniencia pra nao ter que tratar com TVetor4D diretamente
+    // Helpers
     bool Transforma(TPonto3D& p, const TMatriz<double>& matriz4x4)
     {
         bool transformou = false;
@@ -2093,6 +2112,52 @@ namespace TransformacoesLineares
         }
 
         return transformou;
+    }
+
+    // Como temos objetos matematicamente definidos que nao devem mudar
+    // sua natureza (ex.: esfera nao deve virar um elipsoide), precisamos
+    // extrair a escala de uma matriz de transformacao generica para
+    // que possamos multiplicar os escalares desses objetos matematicamente
+    // definidos. Eh importante salientar que isso eh uma limitacoa do nosso
+    // motor, isto eh, certas transformacoes nao farao o que o usuario
+    // experiente de CG esperaria que fizessem (por exemplo, aplicar uma
+    // escala nao-uniforme em uma esfera a transformaria num elipsoide, aplicar
+    // uma escala nao-uniforme em um cone faria ele deixar de ser um cone circular
+    // para se tornar um cone eliptico, etc). Ou seja, se alguem aplicar uma
+    // matriz que achate um cone, o codigo vai ignorar o achatamento e apenas
+    // alterar o tamanho do cone, gerando um resultado visual diferente do esperado
+    // TL;DR: nao estamos sendo fidedignos com os conceitos de CG, mas estamos
+    // seguindo a filosofia das classes (relacionadas ao que foi visto em sala de aula)
+    // e reconhecendo as limitacoes do nosso motor
+    double ExtraiFatorEscala(const TMatriz<double>& m)
+    {
+        // Uma transformacao 3x3 nada mais eh do que o destino dos vetores unitarios
+        // do mundo i, j, k. A coluna 1 diz para onde o vetor (1, 0, 0) foi e qual
+        // seu novo tamanho, a coluna 2 diz o mesmo para (0, 1, 0) e a coluna 3
+        // diz o mesmo para (0, 0, 1).
+        const TVetor3D col1(m[1][1], m[2][1], m[3][1]);
+        const TVetor3D col2(m[1][2], m[2][2], m[3][2]);
+        const TVetor3D col3(m[1][3], m[2][3], m[3][3]);
+
+        // Assumimos a escala em cada direcao como a norma da respectiva coluna.
+        // Eh razoavel assumirmos isso, porque
+        // 1) Se for uma rotacao, o modulo de cada coluna sera exatamente 1,
+        //    pois isso eh uma propriedade das matrizes ortogonais
+        // 2) Se for uma escala uniforme k, o modulo de cada coluna sera k
+        // 3) Se for uma reflexao, o modulo de cada coluna sera exatamente 1,
+        //    pois (-1)^2 = 1 dentro da raiz
+        const double sX = col1.Norma();
+        const double sY = col1.Norma();
+        const double sZ = col1.Norma();
+
+        // Uma boa estrategia aqui eh adotar a media aritmetica. Se a escala
+        // for uniforme, sx = sy = sz = s, como esperado, e tudo deve funcionar direto.
+        // Para escalas nao uniformes, o mais razoavel para se aplicar em objetos
+        // matematicamente definidos que nao suportam esse conceito no nosso motor
+        // eh justmanete tirar a media e aplica-la
+        const double s = (sX + sY + sZ) / 3.0;
+
+        return s;
     }
 }
 
@@ -2367,7 +2432,20 @@ public:
 
     void Transforma(const TMatriz<double>& matriz4x4) override
     {
-        // ToDo
+        // Para pontos, eh so aplicar a matriz da transformacao diretamente
+        TransformacoesLineares::Transforma(_p, matriz4x4);
+
+        // Ao aplicar uma transformacao, vetores normais devem ter sua ortogonalidade preservada,
+        // (90o com a superficie) para que continuem cumprindo seus respectivos papeis nas entidades
+        // que deles necessitem, portanto, nao podemos apenas multiplicar diretamente pela matriz da
+        // transformacao, isso mudaria a direcao... em vez disso, multiplicamos pela transposta
+        // da inversa da matriz de transformacao M, que faz exatamente essa compensacao e mantem
+        // o vetor normal a superficie
+        TransformacoesLineares::Transforma(_n, FuncoesMatrizes::Inversa(matriz4x4).Transposta());
+
+        // O artificio acima preserva a direcao, mas altera o comprimento. Devemos garantir que
+        // os vetores normais permanecam normalizados (curiosamente, nao significa a mesma coisa kkk)
+        _n = _n.Normalizado();
     }
 
 protected:
@@ -2415,7 +2493,7 @@ public:
 
     void Transforma(const TMatriz<double>& matriz4x4) override
     {
-        // ToDo
+        _r *= TransformacoesLineares::ExtraiFatorEscala(matriz4x4);
     }
 
 private:
@@ -2516,7 +2594,29 @@ public:
 
     void Transforma(const TMatriz<double>& matriz4x4) override
     {
-        // ToDo
+        bool transformouAlgumPonto = false;
+        transformouAlgumPonto |= TransformacoesLineares::Transforma(_p1, matriz4x4);
+        transformouAlgumPonto |= TransformacoesLineares::Transforma(_p2, matriz4x4);
+        transformouAlgumPonto |= TransformacoesLineares::Transforma(_p3, matriz4x4);
+
+        // Apos transformar, tem que verificar se mudou o sentido dos vertices
+        // de ah para h, e corrigir se for o caso, pois reflexoes podem fazer isso
+        // Se foi o caso, invertemos a ordem dos triangulos (winding order), e nao
+        // podemos esquecer de inverter as coordenadas uv na mesma ordem, senao
+        // o mapeamento da textura fica incorreto (uv1 faz referencia a p1, se
+        // p1 vira p2 e vice-versa e nao invertemos tambem os uv1, uv1 vai fazer
+        // referencia ao antigo p2, o que eh incorreto)
+        const bool inverteu = FuncoesMatrizes::Det3x3(matriz4x4) < 0.0;
+        if (inverteu)
+        {
+            std::swap(_p1, _p2);
+            std::swap(_uv1, _uv2);
+        }
+
+        if (transformouAlgumPonto)
+        {
+            AtualizaDados();
+        }
     }
 
 private:
@@ -2588,17 +2688,19 @@ private:
 class TCubo : public TEntidadeComposta
 {
 public:
-    TCubo(const TPonto3D& pCentro, double aresta) : _a(aresta), _sa(0.5 * aresta)
+    TCubo(const TPonto3D& pCentro, double aresta)
     {
-        const TPonto3D pFaceInf1 { pCentro.X() - _sa, pCentro.Y(), pCentro.Z() + _sa };
-        const TPonto3D pFaceInf2 { pCentro.X() + _sa, pCentro.Y(), pCentro.Z() + _sa };
-        const TPonto3D pFaceInf3 { pCentro.X() + _sa, pCentro.Y(), pCentro.Z() - _sa };
-        const TPonto3D pFaceInf4 { pCentro.X() - _sa, pCentro.Y(), pCentro.Z() - _sa };
+        const double  a = aresta;
+        const double sa = 0.5 * aresta;
+        const TPonto3D pFaceInf1 { pCentro.X() - sa, pCentro.Y(), pCentro.Z() + sa };
+        const TPonto3D pFaceInf2 { pCentro.X() + sa, pCentro.Y(), pCentro.Z() + sa };
+        const TPonto3D pFaceInf3 { pCentro.X() + sa, pCentro.Y(), pCentro.Z() - sa };
+        const TPonto3D pFaceInf4 { pCentro.X() - sa, pCentro.Y(), pCentro.Z() - sa };
         
-        const TPonto3D pFaceSup1 { pFaceInf1.X(), pFaceInf1.Y() + _a, pFaceInf1.Z() };
-        const TPonto3D pFaceSup2 { pFaceInf2.X(), pFaceInf2.Y() + _a, pFaceInf2.Z() };
-        const TPonto3D pFaceSup3 { pFaceInf3.X(), pFaceInf3.Y() + _a, pFaceInf3.Z() };
-        const TPonto3D pFaceSup4 { pFaceInf4.X(), pFaceInf4.Y() + _a, pFaceInf4.Z() };
+        const TPonto3D pFaceSup1 { pFaceInf1.X(), pFaceInf1.Y() + a, pFaceInf1.Z() };
+        const TPonto3D pFaceSup2 { pFaceInf2.X(), pFaceInf2.Y() + a, pFaceInf2.Z() };
+        const TPonto3D pFaceSup3 { pFaceInf3.X(), pFaceInf3.Y() + a, pFaceInf3.Z() };
+        const TPonto3D pFaceSup4 { pFaceInf4.X(), pFaceInf4.Y() + a, pFaceInf4.Z() };
 
         const TSuperficieRetangular faceInferior { pFaceInf1, pFaceInf2, pFaceInf3, pFaceInf4 };
         const TSuperficieRetangular faceSuperior { pFaceSup1, pFaceSup2, pFaceSup3, pFaceSup4 };
@@ -2647,9 +2749,6 @@ private:
         _fTraseira = static_cast<TSuperficieRetangular*>(_entidades[4].get());
         _fFrontal = static_cast<TSuperficieRetangular*>(_entidades[5].get());
     }
-
-    double _a = 0.0;
-    double _sa = 0.0;
 
     TSuperficieRetangular* _fInferior = nullptr;
     TSuperficieRetangular* _fSuperior = nullptr;
@@ -2854,7 +2953,8 @@ public:
 
     void Transforma(const TMatriz<double>& matriz4x4) override
     {
-        // ToDo
+        TransformacoesLineares::Transforma(_centro, matriz4x4);
+        _raio *= TransformacoesLineares::ExtraiFatorEscala(matriz4x4);
     }
 
 private:
@@ -2871,7 +2971,10 @@ class TSuperficieCilindrica : public IEntidade3D
 {
 public:
     TSuperficieCilindrica(const TPonto3D& pCentroBase, double raio, double altura, const TVetor3D& direcao)
-        : _c(pCentroBase), _r(raio), _h(altura), _d(direcao.Normalizado()) {}
+        : _c(pCentroBase), _r(raio), _h(altura), _d(direcao)
+    {
+        AtualizaDados();
+    }
 
     IEntidade3D* Copia() const override
     {
@@ -2962,7 +3065,14 @@ public:
 
     void Transforma(const TMatriz<double>& matriz4x4) override
     {
-        // ToDo
+        const double k = TransformacoesLineares::ExtraiFatorEscala(matriz4x4);
+
+        TransformacoesLineares::Transforma(_c, matriz4x4);
+        _r *= k;
+        _h *= k;
+        TransformacoesLineares::Transforma(_d, matriz4x4);
+
+        AtualizaDados();
     }
 
     const TPonto3D& CentroBase() const
@@ -2983,6 +3093,11 @@ public:
     }
 
 private:
+    void AtualizaDados()
+    {
+        _d = _d.Normalizado();
+    }
+
     std::string _rotulo;
     TMaterial _material;
 
@@ -3043,10 +3158,9 @@ class TSuperficieConica : public IEntidade3D
 {
 public:
     TSuperficieConica(const TPonto3D& pCentroBase, double raioBase, double altura, const TVetor3D& direcao)
-        : _c(pCentroBase), _r(raioBase), _h(altura), _d(direcao.Normalizado())
+        : _c(pCentroBase), _r(raioBase), _h(altura), _d(direcao)
     {
-        _v = _c + _d * _h;
-        _cosTetaPow2 = (_h * _h) / (_h * _h + _r * _r);
+        AtualizaDados();
     }
 
     IEntidade3D* Copia() const override
@@ -3146,7 +3260,14 @@ public:
 
     void Transforma(const TMatriz<double>& matriz4x4) override
     {
-        // ToDo
+        const double k = TransformacoesLineares::ExtraiFatorEscala(matriz4x4);
+
+        TransformacoesLineares::Transforma(_c, matriz4x4);
+        _r *= k;
+        _h *= k;
+        TransformacoesLineares::Transforma(_d, matriz4x4);
+
+        AtualizaDados();
     }
 
     const TPonto3D& CentroBase() const
@@ -3167,6 +3288,13 @@ public:
     }
 
 private:
+    void AtualizaDados()
+    {
+        _d = _d.Normalizado();
+        _v = _c + _d * _h;
+        _cosTetaPow2 = (_h * _h) / (_h * _h + _r * _r);
+    }
+
     std::string _rotulo;
     TMaterial _material;
 
