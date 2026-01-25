@@ -2392,10 +2392,31 @@ public:
 
         if (const TTextura* tex = _material.Textura())
         {
-            u = p.X() / tex->K();
+            // Calculando componentes locais ao plano para fazer o mapeamento
+            // Antes tava fazendo so isso aqui
+            // u = p.X() / tex->K();
+            // v = p.Z() / tex->K();
+            // u = u - floor(u);
+            // v = v - floor(v);
+            // Mas obviamente estava errado, so funcionava porque, por sorte,
+            // meu plano de chao estava no plano XZ, dai mapeava correto. Quando
+            // mudei para camera livre e posicionei o plano de chao em XY comecou
+            // a quebrar o mapeamento (gerar linhas infinitas em uma direcao, pois
+            // um dos eixos da textura variava mas o outro permanecia constante)
+            // No caso, o valor de p.X() mudava, mas p.Z() estava "travado"
+            // Para corrigir, precisamos calcular sempre em relacao ao espaco
+            // LOCAL do objeto, ai funciona nao importa qual plano que seja
+            // Esse comentario aqui eh soh documentacao pra eu estudar melhor depois
+
+            TVetor3D d = p - _p;
+            TVetor3D aux = (abs(_n.Y()) < 0.9) ? TVetor3D(0, 1, 0) : TVetor3D(1, 0, 0);
+            auto eixoU = aux.Vetorial(_n).Normalizado();
+            auto eixoV = _n.Vetorial(eixoU).Normalizado();
+
+            u = d.Dot(eixoU) / tex->K();
             u = u - floor(u);
 
-            v = p.Z() / tex->K();
+            v = d.Dot(eixoV) / tex->K();
             v = v - floor(v);
         }
 
