@@ -1,5 +1,17 @@
 # CENA: TESTE
 
+# TRASLADA nome tx ty tz
+# ROTACIONA_X nome teta
+# ROTACIONA_Y nome teta
+# ROTACIONA_Z nome teta
+# ROTACIONA_U nome ux uy uz teta
+# ESCALA nome sx sy sz
+# CISALHA nome hXY hXZ hYX hYZ hZX hZY
+# REFLEXAO_XY nome
+# REFLEXAO_XZ nome
+# REFLEXAO_YZ nome
+# REFLEXAO_NQ nome nx ny nz Qx Qy Qz
+
 bgcolor 100 100 100
 iamb 0.3 0.3 0.3
 

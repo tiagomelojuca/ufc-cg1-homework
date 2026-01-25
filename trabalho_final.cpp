@@ -4411,27 +4411,39 @@ public:
 
         for (const auto& metadadosElemento : _planos)
         {
-            cena.Insere(Converte(metadadosElemento));
+            auto entidade3D = Converte(metadadosElemento);
+            AplicaTransformacoes(entidade3D);
+            cena.Insere(entidade3D);
         }
         for (const auto& metadadosElemento : _cilindros)
         {
-            cena.Insere(Converte(metadadosElemento));
+            auto entidade3D = Converte(metadadosElemento);
+            AplicaTransformacoes(entidade3D);
+            cena.Insere(entidade3D);
         }
         for (const auto& metadadosElemento : _cones)
         {
-            cena.Insere(Converte(metadadosElemento));
+            auto entidade3D = Converte(metadadosElemento);
+            AplicaTransformacoes(entidade3D);
+            cena.Insere(entidade3D);
         }
         for (const auto& metadadosElemento : _cubos)
         {
-            cena.Insere(Converte(metadadosElemento));
+            auto entidade3D = Converte(metadadosElemento);
+            AplicaTransformacoes(entidade3D);
+            cena.Insere(entidade3D);
         }
         for (const auto& metadadosElemento : _esferas)
         {
-            cena.Insere(Converte(metadadosElemento));
+            auto entidade3D = Converte(metadadosElemento);
+            AplicaTransformacoes(entidade3D);
+            cena.Insere(entidade3D);
         }
         for (const auto& metadadosElemento : _malhas)
         {
-            cena.Insere(Converte(metadadosElemento));
+            auto entidade3D = Converte(metadadosElemento);
+            AplicaTransformacoes(entidade3D);
+            cena.Insere(entidade3D);
         }
         for (const auto& metadadosElemento : _fontesPontuais)
         {
@@ -4545,6 +4557,90 @@ private:
         TVetor3D intensidade;
     };
 
+    struct TMetadadosTransformacao
+    {
+        TMetadadosTransformacao(const std::string& entidade) : entidade(entidade) {}
+        virtual ~TMetadadosTransformacao() = default;
+
+        std::string entidade;
+    };
+    struct TMetadadosTransformacaoTranslacao : public TMetadadosTransformacao
+    {
+        TMetadadosTransformacaoTranslacao(const std::string& entidade, const TPonto3D& t)
+            : TMetadadosTransformacao(entidade), t(t) {}
+
+        TPonto3D t;
+    };
+    struct TMetadadosTransformacaoRotacaoEixoCanonico : public TMetadadosTransformacao
+    {
+        TMetadadosTransformacaoRotacaoEixoCanonico(
+            const std::string& entidade,
+            const std::string& eixo,
+            double tetaEmGraus
+        ) : TMetadadosTransformacao(entidade), eixo(eixo), tetaEmGraus(tetaEmGraus) {}
+
+        std::string eixo;
+        double tetaEmGraus;
+    };
+    struct TMetadadosTransformacaoRotacaoEixoArbitrario : public TMetadadosTransformacao
+    {
+        TMetadadosTransformacaoRotacaoEixoArbitrario(
+            const std::string& entidade,
+            const TVetor3D& u,
+            double tetaEmGraus
+        ) : TMetadadosTransformacao(entidade), u(u), tetaEmGraus(tetaEmGraus) {}
+
+        TVetor3D u;
+        double tetaEmGraus;
+    };
+    struct TMetadadosTransformacaoEscala : public TMetadadosTransformacao
+    {
+        TMetadadosTransformacaoEscala(const std::string& entidade, const TPonto3D& s)
+            : TMetadadosTransformacao(entidade), s(s) {}
+
+        TPonto3D s;
+    };
+    struct TMetadadosTransformacaoCisalhamento : public TMetadadosTransformacao
+    {
+        TMetadadosTransformacaoCisalhamento(
+            const std::string& entidade,
+            double hXY,
+            double hXZ,
+            double hYX,
+            double hYZ,
+            double hZX,
+            double hZY
+        ) : TMetadadosTransformacao(entidade),
+            hXY(hXY), hXZ(hXZ), hYX(hYX), hYZ(hYZ), hZX(hZX), hZY(hZY) {}
+
+        double hXY;
+        double hXZ;
+        double hYX;
+        double hYZ;
+        double hZX;
+        double hZY;
+    };
+    struct TMetadadosTransformacaoReflexaoPlanoCanonico : public TMetadadosTransformacao
+    {
+        TMetadadosTransformacaoReflexaoPlanoCanonico(
+            const std::string& entidade,
+            const std::string& plano
+        ) : TMetadadosTransformacao(entidade), plano(plano) {}
+
+        std::string plano;
+    };
+    struct TMetadadosTransformacaoReflexaoPlanoArbitrario : public TMetadadosTransformacao
+    {
+        TMetadadosTransformacaoReflexaoPlanoArbitrario(
+            const std::string& entidade,
+            const TVetor3D& n,
+            const TPonto3D& Q
+        ) : TMetadadosTransformacao(entidade), n(n), Q(Q) {}
+
+        TVetor3D n;
+        TPonto3D Q;
+    };
+
     bool ProcessaLinha(const std::string& linha) override
     {
         if (IniciaComPalavraChave(linha, "bgcolor"))
@@ -4557,6 +4653,103 @@ private:
             _iAmbR = iamb.X();
             _iAmbG = iamb.Y();
             _iAmbB = iamb.Z();
+        }
+        else if (IniciaComPalavraChave(linha, "TRASLADA"))
+        {
+            std::string token;
+            std::string nome;
+            double tx, ty, tz;
+
+            std::istringstream iss(linha);
+            iss >> token >> nome >> tx >> ty >> tz;
+
+            _transformacoes.push_back(
+                new TMetadadosTransformacaoTranslacao { nome, { tx, ty, tz } }
+            );
+        }
+        else if (IniciaComPalavraChave(linha, "ROTACIONA_X") ||
+                 IniciaComPalavraChave(linha, "ROTACIONA_Y") ||
+                 IniciaComPalavraChave(linha, "ROTACIONA_Z"))
+        {
+            std::string token;
+            std::string nome;
+            double tetaGraus;
+
+            std::istringstream iss(linha);
+            iss >> token >> nome >> tetaGraus;
+
+            _transformacoes.push_back(
+                new TMetadadosTransformacaoRotacaoEixoCanonico { nome, token, tetaGraus }
+            );
+        }
+        else if (IniciaComPalavraChave(linha, "ROTACIONA_U"))
+        {
+            std::string token;
+            std::string nome;
+            double ux, uy, uz, tetaGraus;
+
+            std::istringstream iss(linha);
+            iss >> token >> nome >> ux >> uy >> uz >> tetaGraus;
+
+            _transformacoes.push_back(
+                new TMetadadosTransformacaoRotacaoEixoArbitrario { nome, { ux, uy, uz }, tetaGraus }
+            );
+        }
+        else if (IniciaComPalavraChave(linha, "ESCALA"))
+        {
+            std::string token;
+            std::string nome;
+            double sx, sy, sz;
+
+            std::istringstream iss(linha);
+            iss >> token >> nome >> sx >> sy >> sz;
+
+            _transformacoes.push_back(
+                new TMetadadosTransformacaoEscala { nome, { sx, sy, sz } }
+            );
+        }
+        else if (IniciaComPalavraChave(linha, "CISALHA"))
+        {
+            std::string token;
+            std::string nome;
+            double hXY, hXZ, hYX, hYZ, hZX, hZY;
+
+            std::istringstream iss(linha);
+            iss >> token >> nome >> hXY >> hXZ >> hYX >> hYZ >> hZX >> hZY;
+
+            _transformacoes.push_back(
+                new TMetadadosTransformacaoCisalhamento { nome, hXY, hXZ, hYX, hYZ, hZX, hZY }
+            );
+        }
+        else if (IniciaComPalavraChave(linha, "REFLEXAO_XY") ||
+                 IniciaComPalavraChave(linha, "REFLEXAO_XZ") ||
+                 IniciaComPalavraChave(linha, "REFLEXAO_YZ"))
+        {
+            std::string token;
+            std::string nome;
+
+            std::istringstream iss(linha);
+            iss >> token >> nome;
+
+            _transformacoes.push_back(
+                new TMetadadosTransformacaoReflexaoPlanoCanonico { nome, token }
+            );
+        }
+        else if (IniciaComPalavraChave(linha, "REFLEXAO_NQ"))
+        {
+            std::string token;
+            std::string nome;
+            double nx, ny, nz, Qx, Qy, Qz;
+
+            std::istringstream iss(linha);
+            iss >> token >> nome >> nx >> ny >> nz >> Qx >> Qy >> Qz;
+
+            const TVetor3D n { nx, ny, nz };
+            const TPonto3D Q { Qx, Qy, Qz };
+
+            _transformacoes.push_back(
+                new TMetadadosTransformacaoReflexaoPlanoArbitrario { nome, n, Q }
+            );
         }
         else if (IniciaComPalavraChave(linha, "FIM_DECLARACAO"))
         {
@@ -5015,6 +5208,134 @@ private:
         return TFonteDirecional { metadadosElemento.direcao, metadadosElemento.intensidade };
     }
 
+    void AplicaTransformacoes(IEntidade3D& entidade3D) const
+    {
+        for (auto&& metadadosTransformacao : _transformacoes)
+        {
+            if (entidade3D.Rotulo() == metadadosTransformacao->entidade)
+            {
+                AplicaTransformacao(entidade3D, *metadadosTransformacao);
+            }
+        }
+    }
+
+    void AplicaTransformacao(
+        IEntidade3D& entidade3D,
+        const TMetadadosTransformacao& transformacao
+    ) const
+    {
+        if (auto translacao = dynamic_cast<const TMetadadosTransformacaoTranslacao*>(&transformacao))
+        {
+            AplicaTransformacao(entidade3D, *translacao);
+        }
+        else if (auto rotacaoEixoCanonico = dynamic_cast<const TMetadadosTransformacaoRotacaoEixoCanonico*>(&transformacao))
+        {
+            AplicaTransformacao(entidade3D, *rotacaoEixoCanonico);
+        }
+        else if (auto rotacaoEixoArbitrario = dynamic_cast<const TMetadadosTransformacaoRotacaoEixoArbitrario*>(&transformacao))
+        {
+            AplicaTransformacao(entidade3D, *rotacaoEixoArbitrario);
+        }
+        else if (auto escala = dynamic_cast<const TMetadadosTransformacaoEscala*>(&transformacao))
+        {
+            AplicaTransformacao(entidade3D, *escala);
+        }
+        else if (auto cisalhamento = dynamic_cast<const TMetadadosTransformacaoCisalhamento*>(&transformacao))
+        {
+            AplicaTransformacao(entidade3D, *cisalhamento);
+        }
+        else if (auto reflexaoPlanoCanonico = dynamic_cast<const TMetadadosTransformacaoReflexaoPlanoCanonico*>(&transformacao))
+        {
+            AplicaTransformacao(entidade3D, *reflexaoPlanoCanonico);
+        }
+        else if (auto reflexaoPlanoArbitrario = dynamic_cast<const TMetadadosTransformacaoReflexaoPlanoArbitrario*>(&transformacao))
+        {
+            AplicaTransformacao(entidade3D, *reflexaoPlanoArbitrario);
+        }
+    }
+    void AplicaTransformacao(
+        IEntidade3D& entidade3D,
+        const TMetadadosTransformacaoTranslacao& transformacao
+    ) const
+    {
+        TransformacoesLineares::Translacao(entidade3D, transformacao.t);
+    }
+    void AplicaTransformacao(
+        IEntidade3D& entidade3D,
+        const TMetadadosTransformacaoRotacaoEixoCanonico& transformacao
+    ) const
+    {
+        const double teta = FuncoesGerais::Deg2Rad(transformacao.tetaEmGraus);
+        if (transformacao.eixo == "ROTACIONA_X")
+        {
+            TransformacoesLineares::RotacaoEmTornoDeX(entidade3D, teta);
+        }
+        else if (transformacao.eixo == "ROTACIONA_Y")
+        {
+            TransformacoesLineares::RotacaoEmTornoDeY(entidade3D, teta);
+        }
+        else if (transformacao.eixo == "ROTACIONA_Z")
+        {
+            TransformacoesLineares::RotacaoEmTornoDeZ(entidade3D, teta);
+        }
+    }
+    void AplicaTransformacao(
+        IEntidade3D& entidade3D,
+        const TMetadadosTransformacaoRotacaoEixoArbitrario& transformacao
+    ) const
+    {
+        TransformacoesLineares::Rotacao(
+            entidade3D, transformacao.u, FuncoesGerais::Deg2Rad(transformacao.tetaEmGraus)
+        );
+    }
+    void AplicaTransformacao(
+        IEntidade3D& entidade3D,
+        const TMetadadosTransformacaoEscala& transformacao
+    ) const
+    {
+        TransformacoesLineares::Escala(entidade3D, transformacao.s);
+    }
+    void AplicaTransformacao(
+        IEntidade3D& entidade3D,
+        const TMetadadosTransformacaoCisalhamento& transformacao
+    ) const
+    {
+        TransformacoesLineares::Cisalhamento(
+            entidade3D,
+            transformacao.hXY,
+            transformacao.hXZ,
+            transformacao.hYX,
+            transformacao.hYZ,
+            transformacao.hZX,
+            transformacao.hZY
+        );
+    }
+    void AplicaTransformacao(
+        IEntidade3D& entidade3D,
+        const TMetadadosTransformacaoReflexaoPlanoCanonico& transformacao
+    ) const
+    {
+        if (transformacao.plano == "REFLEXAO_XY")
+        {
+            TransformacoesLineares::ReflexaoEmTornoDeXY(entidade3D);
+        }
+        else if (transformacao.plano == "REFLEXAO_XZ")
+        {
+            TransformacoesLineares::ReflexaoEmTornoDeXZ(entidade3D);
+        }
+        else if (transformacao.plano == "REFLEXAO_YZ")
+        {
+            TransformacoesLineares::ReflexaoEmTornoDeYZ(entidade3D);
+        }
+    }
+    void AplicaTransformacao(
+        IEntidade3D& entidade3D,
+        const TMetadadosTransformacaoReflexaoPlanoArbitrario& transformacao
+    ) const
+    {
+        TransformacoesLineares::Reflexao(entidade3D, transformacao.n, transformacao.Q);
+    }
+
     TMaterial MaterialCadastrado(const std::string& nome) const
     {
         TMaterial m;
@@ -5038,6 +5359,7 @@ private:
     double _iAmbB = 0.0;
 
     TMetadadosCamera _camera;
+
     std::vector<TMetadadosMaterial> _materiais;
     std::vector<TMetadadosPlano> _planos;
     std::vector<TMetadadosCilindro> _cilindros;
@@ -5049,6 +5371,7 @@ private:
     std::vector<TMetadadosFonteSpot> _fontesSpots;
     std::vector<TMetadadosFonteDirecional> _fontesDirecionais;
 
+    std::vector<TMetadadosTransformacao*> _transformacoes;
     std::unordered_map<std::string, TMaterial> _materiaisCadastrados;
 };
 
