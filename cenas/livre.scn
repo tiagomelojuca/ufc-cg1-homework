@@ -1,4 +1,29 @@
-# CENA: LIVRE
+# CENA: CENARIO_FINAL
+
+# [ ] Saida de min 500x500
+# [ ] Coordenadas de mundo positivas
+# [ ] Camera ortografica
+# [ ] Camera obliquia
+# [ ] Camera perspectiva c/ 1 ponto de fuga
+# [ ] Camera perspectiva c/ 2 ponto de fuga
+# [ ] Camera perspectiva c/ 3 ponto de fuga
+# [ ] Objeto Esfera
+# [ ] Objeto Cilindro
+# [ ] Objeto Cone
+# [ ] Objeto Malha
+# [ ] 4 materiais
+# [ ] 1 textura
+# [ ] Transformacao de Translacao
+# [ ] Transformacao de Rotacao em eixo canonico
+# [ ] Transformacao de Rotacao em eixo arbitrario
+# [ ] Transformacao de Escala
+# [ ] Transformacao de Cisalhamento
+# [ ] Transformacao de Reflexao
+# [ ] Luz Pontual
+# [ ] Luz Spot
+# [ ] Luz Direcional
+# [ ] Luz Ambiente
+# [ ] Sombra
 
 bgcolor 100 100 100
 iamb 0.3 0.3 0.3
@@ -7,27 +32,47 @@ DECLARA_CAMERA
 projecao perspectiva
 janela 60 60 30
 viewport 500 500
-olho 0 0 0
+olho 0 0 10
 visada 0 0 -1
 cima 0 1 0
 FIM_DECLARACAO
 
 DECLARA_MATERIAL
-nome material_rosa
+nome material_chao
 kd 1 0.078 0.576
 ke 1 0.078 0.576
 ka 1 0.078 0.576
-m 10
+m 1
 FIM_DECLARACAO
 
-DECLARA_CUBO
-nome CUBO_1
-material material_rosa
-posicao 0 -150 -165
-aresta 40
+DECLARA_MATERIAL
+nome material_teto
+kd 0.686 0.933 0.933
+ke 0.686 0.933 0.933
+ka 0.686 0.933 0.933
+m 1
 FIM_DECLARACAO
 
-DECLARA_LUZ_PONTUAL
-posicao -100 140 -20
+DECLARA_PLANO
+nome PLANO_CHAO
+material material_chao
+posicao 0 -150 0
+direcao 0 1 0
+FIM_DECLARACAO
+
+DECLARA_PLANO
+nome PLANO_PAREDE_FRONTAL
+material material_teto
+posicao 200 -150 -400
+direcao 0 0 1
+FIM_DECLARACAO
+
+# DECLARA_MALHA
+# nome MALHA_1
+# arquivo recursos/Spyro/Spyro.obj
+# FIM_DECLARACAO
+
+DECLARA_LUZ_DIRECIONAL
+direcao -1 1 1
 intensidade 0.7 0.7 0.7
 FIM_DECLARACAO
