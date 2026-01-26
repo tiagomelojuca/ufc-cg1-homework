@@ -3376,7 +3376,7 @@ private:
 class TCamera
 {
 public:
-    enum class EProjecao { PERSPECTIVA, PARALELA };
+    enum class EProjecao { PERSPECTIVA, ORTOGRAFICA, OBLIQUA_CAVALIER, OBLIQUA_CABINET };
 
     TCamera() = default;
 
@@ -3467,9 +3467,20 @@ public:
 
     TRaio3D RaioMundo(uint16_t x, uint16_t y) const
     {
-        return _modoProjecao == EProjecao::PERSPECTIVA
-            ? RaioMundoProjecaoPerspectiva(x, y)
-            : RaioMundoProjecaoParalela(x, y);
+        if (_modoProjecao == EProjecao::OBLIQUA_CABINET)
+        {
+            return RaioMundoProjecaoObliquaCabinet(x, y);
+        }
+        if (_modoProjecao == EProjecao::OBLIQUA_CAVALIER)
+        {
+            return RaioMundoProjecaoObliquaCavalier(x, y);
+        }
+        if (_modoProjecao == EProjecao::ORTOGRAFICA)
+        {
+            return RaioMundoProjecaoOrtografica(x, y);
+        }
+
+        return RaioMundoProjecaoPerspectiva(x, y);
     }
 
 private:
@@ -3492,7 +3503,7 @@ private:
 
         return TRaio3D { pOrigemMundo, direcaoRaioMundo };
     }
-    TRaio3D RaioMundoProjecaoParalela(uint16_t x, uint16_t y) const
+    TRaio3D RaioMundoProjecaoOrtografica(uint16_t x, uint16_t y) const
     {
         const double px = -0.5 * _wJanela + 0.5 * _dx + x * _dx;
         const double py =  0.5 * _hJanela - 0.5 * _dy - y * _dy;
@@ -3509,6 +3520,30 @@ private:
         const TVetor3D direcaoRaioMundo = _w * -1.0;
 
         return TRaio3D { pOrigemMundo, direcaoRaioMundo };
+    }
+    TRaio3D RaioMundoProjecaoObliqua(uint16_t x, uint16_t y, double L, double alfaGraus) const
+    {
+        const double px = -0.5 * _wJanela + 0.5 * _dx + x * _dx;
+        const double py =  0.5 * _hJanela - 0.5 * _dy - y * _dy;
+        const double pz =  0.0;
+
+        const TPonto3D pOrigemMundo = _pEye + (_u * px) + (_v * py) + (_w * pz);
+
+        const double alfa = FuncoesGerais::Deg2Rad(alfaGraus);
+        const double dxCam = L * cos(alfa);
+        const double dyCam = L * sin(alfa);
+        const double dzCam = -1.0;
+        const TVetor3D direcaoRaioMundo = (_u * dxCam) + (_v * dyCam) + (_w * dzCam);
+
+        return TRaio3D { pOrigemMundo, direcaoRaioMundo.Normalizado() };
+    }
+    TRaio3D RaioMundoProjecaoObliquaCavalier(uint16_t x, uint16_t y) const
+    {
+        return RaioMundoProjecaoObliqua(x, y, 1.0, 45.0);
+    }
+    TRaio3D RaioMundoProjecaoObliquaCabinet(uint16_t x, uint16_t y) const
+    {
+        return RaioMundoProjecaoObliqua(x, y, 0.5, 63.4);
     }
 
     EProjecao _modoProjecao = EProjecao::PERSPECTIVA;
@@ -5114,9 +5149,23 @@ private:
 
     TCamera Converte(const TMetadadosCamera& metadadosElemento) const
     {
-        auto modoProjecao = metadadosElemento.projecao == "perspectiva"
-            ? TCamera::EProjecao::PERSPECTIVA
-            : TCamera::EProjecao::PARALELA;
+        TCamera::EProjecao modoProjecao;
+        if (metadadosElemento.projecao == "cabinet")
+        {
+            modoProjecao = TCamera::EProjecao::OBLIQUA_CABINET;
+        }
+        else if (metadadosElemento.projecao == "cavalier")
+        {
+            modoProjecao = TCamera::EProjecao::OBLIQUA_CAVALIER;
+        }
+        else if (metadadosElemento.projecao == "ortografica")
+        {
+            modoProjecao = TCamera::EProjecao::ORTOGRAFICA;
+        }
+        else
+        {
+            modoProjecao = TCamera::EProjecao::PERSPECTIVA;
+        }
 
         return TCamera()
                 .Projecao(modoProjecao)
@@ -5568,7 +5617,7 @@ namespace Mocks
     TCamera FabricaCameraOrtograficaComArtefatos()
     {
         return TCamera()
-                .Projecao(TCamera::EProjecao::PARALELA)
+                .Projecao(TCamera::EProjecao::ORTOGRAFICA)
                 .Janela(500.0, 500.0)
                 .DistanciaFocal(0.0)
                 .Viewport(500u, 500u)
@@ -5581,7 +5630,7 @@ namespace Mocks
     TCamera FabricaCameraIsometricaComArtefatos()
     {
         return TCamera()
-                .Projecao(TCamera::EProjecao::PARALELA)
+                .Projecao(TCamera::EProjecao::ORTOGRAFICA)
                 .Janela(500.0, 500.0)
                 .DistanciaFocal(0.0)
                 .Viewport(500u, 500u)
