@@ -1983,14 +1983,15 @@ namespace TransformacoesLineares
         double sinTetaY = _u.X();
 
         // Com isso, somos capazes de calcular todas as matrizes de rotacao intermediarias
+        // Lembrar que Ry opera sobre -teta, por isso nao eh igual a RotacaoEmTornoDeY
         const TMatriz<double> Rx(4u, 4u, { { 1.0,      0.0,       0.0, 0.0 },
                                            { 0.0, cosTetaX, -sinTetaX, 0.0 },
                                            { 0.0, sinTetaX,  cosTetaX, 0.0 },
                                            { 0.0,      0.0,       0.0, 1.0 } });
-        const TMatriz<double> Ry(4u, 4u, { {  cosTetaY, 0.0, sinTetaY, 0.0 },
-                                           {       0.0, 1.0,      0.0, 0.0 },
-                                           { -sinTetaY, 0.0, cosTetaY, 0.0 },
-                                           {       0.0, 0.0,      0.0, 1.0 } });
+        const TMatriz<double> Ry(4u, 4u, { { cosTetaY, 0.0, -sinTetaY, 0.0 },
+                                           {      0.0, 1.0,       0.0, 0.0 },
+                                           { sinTetaY, 0.0,  cosTetaY, 0.0 },
+                                           {      0.0, 0.0,       0.0, 1.0 } });
         const TMatriz<double> Rz(4u, 4u, { { cos(teta), -sin(teta), 0.0, 0.0 },
                                            { sin(teta),  cos(teta), 0.0, 0.0 },
                                            {       0.0,        0.0, 1.0, 0.0 },
