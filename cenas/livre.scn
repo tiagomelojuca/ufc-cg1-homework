@@ -1,78 +1,343 @@
 # CENA: CENARIO_FINAL
 
-# [ ] Saida de min 500x500
-# [ ] Coordenadas de mundo positivas
-# [ ] Camera ortografica
-# [ ] Camera obliquia
-# [ ] Camera perspectiva c/ 1 ponto de fuga
-# [ ] Camera perspectiva c/ 2 ponto de fuga
-# [ ] Camera perspectiva c/ 3 ponto de fuga
-# [ ] Objeto Esfera
-# [ ] Objeto Cilindro
-# [ ] Objeto Cone
-# [ ] Objeto Malha
-# [ ] 4 materiais
-# [ ] 1 textura
-# [ ] Transformacao de Translacao
-# [ ] Transformacao de Rotacao em eixo canonico
-# [ ] Transformacao de Rotacao em eixo arbitrario
-# [ ] Transformacao de Escala
-# [ ] Transformacao de Cisalhamento
+# [x] Saida de min 500x500
+# [x] Coordenadas de mundo positivas
+# [x] Camera ortografica
+# [x] Camera obliquia
+# [x] Camera perspectiva c/ 1 ponto de fuga
+# [x] Camera perspectiva c/ 2 ponto de fuga
+# [x] Camera perspectiva c/ 3 ponto de fuga
+# [x] Objeto Esfera
+# [x] Objeto Cilindro
+# [x] Objeto Cone
+# [x] Objeto Malha
+# [x] 4 materiais
+# [x] 1 textura
+# [x] Transformacao de Translacao
+# [x] Transformacao de Rotacao em eixo canonico
+# [x] Transformacao de Rotacao em eixo arbitrario
+# [x] Transformacao de Escala
+# [x] Transformacao de Cisalhamento
 # [ ] Transformacao de Reflexao
-# [ ] Luz Pontual
-# [ ] Luz Spot
-# [ ] Luz Direcional
-# [ ] Luz Ambiente
-# [ ] Sombra
+# [x] Luz Pontual
+# [x] Luz Spot
+# [x] Luz Direcional
+# [x] Luz Ambiente
+# [x] Sombra
 
-bgcolor 100 100 100
-iamb 0.3 0.3 0.3
+#####################################################################
+# CENA
+#####################################################################
 
+# VISAO PERSPECTIVA 1 PT DE FUGA
+# DECLARA_CAMERA
+# projecao perspectiva
+# janela 60 60 30
+# viewport 500 500
+# olho 120 120 20
+# visada 100 100 20
+# cima 0 0 1
+# FIM_DECLARACAO
+
+# VISAO PERSPECTIVA 2 PT DE FUGA
+# DECLARA_CAMERA
+# projecao perspectiva
+# janela 60 60 30
+# viewport 500 500
+# olho 120 120 20
+# visada 40 100 20
+# cima 0 0 1
+# FIM_DECLARACAO
+
+# VISAO PERSPECTIVA 3 PT DE FUGA
 DECLARA_CAMERA
 projecao perspectiva
 janela 60 60 30
 viewport 500 500
-olho 0 0 10
-visada 0 0 -1
-cima 0 1 0
+olho 120 120 20
+visada -3 40 -25
+cima 0 0 1
+FIM_DECLARACAO
+
+# VISAO ORTOGRAFICA FRONTAL
+# DECLARA_CAMERA
+# projecao ortografica
+# janela 60 60 30
+# viewport 500 500
+# olho 200 80 20
+# visada 100 80 20
+# cima 0 0 1
+# FIM_DECLARACAO
+
+# VISAO ORTOGRAFICA LATERAL
+# DECLARA_CAMERA
+# projecao ortografica
+# janela 60 60 30
+# viewport 500 500
+# olho 80 200 20
+# visada 80 100 20
+# cima 0 0 1
+# FIM_DECLARACAO
+
+# VISAO ORTOGRAFICA CIMA
+# DECLARA_CAMERA
+# projecao ortografica
+# janela 150 150 30
+# viewport 500 500
+# olho 100 100 80
+# visada 100 100 70
+# cima -1 0 0
+# FIM_DECLARACAO
+
+# VISAO ISOMETRICA
+# DECLARA_CAMERA
+# projecao ortografica
+# janela 120 120 30
+# viewport 500 500
+# olho 200 200 100
+# visada 100 100 0
+# cima 0 0 1
+# FIM_DECLARACAO
+
+# VISAO OBLIQUA CABINET
+# DECLARA_CAMERA
+# projecao cabinet
+# janela 200 200 30
+# viewport 500 500
+# olho 0 0 250
+# visada 0 0 0
+# cima 0 1 0
+# FIM_DECLARACAO
+
+# VISAO OBLIQUA CAVALIER
+# DECLARA_CAMERA
+# projecao cavalier
+# janela 200 200 30
+# viewport 500 500
+# olho -50 -50 250
+# visada -50 -50 0
+# cima 0 1 0
+# FIM_DECLARACAO
+
+bgcolor 0 15 45
+iamb 0.15 0.15 0.15
+
+DECLARA_LUZ_PONTUAL
+posicao 0 100 50
+intensidade 0.3 0.3 0.3
+FIM_DECLARACAO
+
+DECLARA_LUZ_SPOT
+posicao 120 90 25
+direcao -20 10 -25
+intensidade 0.4 0.4 0.4
+angulo 25
+FIM_DECLARACAO
+
+DECLARA_LUZ_DIRECIONAL
+direcao 1 -1 1
+intensidade 0.15 0.15 0.15
+FIM_DECLARACAO
+
+#####################################################################
+# CHAO
+#####################################################################
+
+DECLARA_MATERIAL
+nome material_grama_simplificado
+kd 0 1 0.498
+ke 0 1 0.498
+ka 0 1 0.498
+m 10
 FIM_DECLARACAO
 
 DECLARA_MATERIAL
-nome material_chao
-kd 1 0.078 0.576
-ke 1 0.078 0.576
-ka 1 0.078 0.576
+nome material_grama
+kd 0 0 0
+ke 0 0 0
+ka 0 0 0
+m 1
+tex recursos/Cenario/yTc3ub.png
+k 2
+FIM_DECLARACAO
+
+DECLARA_PLANO
+nome PLANO_CHAO
+material material_grama
+posicao 0 0 0
+direcao 0 0 1
+FIM_DECLARACAO
+
+#####################################################################
+# JOGADOR
+#####################################################################
+
+DECLARA_MALHA
+nome JOGADOR
+arquivo recursos/Cenario/Human.obj
+FIM_DECLARACAO
+ROTACIONA_X JOGADOR 90
+ROTACIONA_Y JOGADOR 5
+ROTACIONA_Z JOGADOR -60
+ESCALA JOGADOR 1.5 1.2 1.0
+TRASLADA JOGADOR 100 100 0
+
+#####################################################################
+# POSTE DE LUZ
+#####################################################################
+
+DECLARA_MALHA
+nome POSTE
+arquivo recursos/Cenario/post.obj
+FIM_DECLARACAO
+ESCALA POSTE 20 20 20
+ROTACIONA_X POSTE 90
+CISALHA POSTE 0.2 -0.2 0 0 0 0
+TRASLADA POSTE 80 20 25
+
+#####################################################################
+# BOLA
+#####################################################################
+
+DECLARA_MATERIAL
+nome material_bola
+kd 0.9 0.9 0.9
+ke 0.9 0.9 0.9
+ka 0.9 0.9 0.9
 m 1
 FIM_DECLARACAO
 
+DECLARA_ESFERA
+nome BOLA
+material material_bola
+posicao 93 100 1
+raio 1
+FIM_DECLARACAO
+
+#####################################################################
+# TRAVE
+#####################################################################
+
 DECLARA_MATERIAL
-nome material_teto
+nome material_trave
 kd 0.686 0.933 0.933
 ke 0.686 0.933 0.933
 ka 0.686 0.933 0.933
 m 1
 FIM_DECLARACAO
 
-DECLARA_PLANO
-nome PLANO_CHAO
-material material_chao
-posicao 0 -150 0
-direcao 0 1 0
-FIM_DECLARACAO
-
-DECLARA_PLANO
-nome PLANO_PAREDE_FRONTAL
-material material_teto
-posicao 200 -150 -400
+DECLARA_CILINDRO
+nome CILINDRO_1
+material material_trave
+posicao 70 70 0
 direcao 0 0 1
+raio 1
+altura 20
 FIM_DECLARACAO
 
-# DECLARA_MALHA
-# nome MALHA_1
-# arquivo recursos/Spyro/Spyro.obj
-# FIM_DECLARACAO
-
-DECLARA_LUZ_DIRECIONAL
-direcao -1 1 1
-intensidade 0.7 0.7 0.7
+DECLARA_CILINDRO
+nome CILINDRO_2
+material material_trave
+posicao 55 90 0
+direcao 0 0 1
+raio 1
+altura 20
 FIM_DECLARACAO
+
+DECLARA_CILINDRO
+nome CILINDRO_3
+material material_trave
+posicao 70 70 20
+direcao 0 0 1
+raio 1
+altura 26
+FIM_DECLARACAO
+TRASLADA CILINDRO_3 -70 -70 -20
+ROTACIONA_U CILINDRO_3 -20 -15 0 90
+TRASLADA CILINDRO_3 70 70 20
+
+DECLARA_MATERIAL
+nome material_chapeu_trave
+kd 1 0.078 0.576
+ke 1 0.078 0.576
+ka 1 0.078 0.576
+m 10
+FIM_DECLARACAO
+
+DECLARA_CONE
+nome CHAPEU_TRAVE_1
+material material_chapeu_trave
+posicao 55 90 19
+direcao 0 0 1
+raio 3
+altura 5
+FIM_DECLARACAO
+
+DECLARA_CONE
+nome CHAPEU_TRAVE_2
+material material_chapeu_trave
+posicao 70 70 19
+direcao 0 0 1
+raio 3
+altura 5
+FIM_DECLARACAO
+
+#####################################################################
+# LUA
+#####################################################################
+
+DECLARA_MATERIAL
+nome material_lua
+kd 0.93 0.89 0.69
+ke 0.93 0.89 0.69
+ka 0.93 0.89 0.69
+m 100
+FIM_DECLARACAO
+
+DECLARA_ESFERA
+nome LUA
+material material_lua
+posicao 0 120 60
+raio 5
+FIM_DECLARACAO
+
+DECLARA_LUZ_SPOT
+posicao 100 100 60
+direcao -100 20 0
+intensidade 1.0 1.0 1.0
+angulo 5
+FIM_DECLARACAO
+
+#####################################################################
+# MUROS
+#####################################################################
+
+DECLARA_MATERIAL
+nome material_muros
+kd 0.88 0.49 0.2
+ke 0.88 0.49 0.2
+ka 0.88 0.49 0.2
+m 10
+FIM_DECLARACAO
+
+DECLARA_CUBO
+nome CUBO_1
+material material_muros
+posicao 30 30 0
+aresta 40
+FIM_DECLARACAO
+TRASLADA CUBO_1 -30 -30 0
+ESCALA CUBO_1 5.0 0.05 1.0
+TRASLADA CUBO_1 30 30 0
+
+DECLARA_CUBO
+nome CUBO_2
+material material_muros
+posicao 30 30 0
+aresta 40
+FIM_DECLARACAO
+TRASLADA CUBO_2 -30 -30 0
+ESCALA CUBO_2 0.05 5.0 1.0
+TRASLADA CUBO_2 30 30 0
+
+#####################################################################
