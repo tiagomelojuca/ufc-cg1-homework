@@ -2514,6 +2514,7 @@ public:
 
     void Transforma(const TMatriz<double>& matriz4x4) override
     {
+        TPlano::Transforma(matriz4x4);
         _r *= TransformacoesLineares::ExtraiFatorEscala(matriz4x4);
     }
 
